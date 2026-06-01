@@ -56,9 +56,9 @@ export const returnAsset = async (req, res) => {
             asset.status = 'available';
             await asset.save();
         }
-
         res.json({ message: 'Asset returned successfully', assignment });
-    } catch (error) {
+    }
+    catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
@@ -70,7 +70,8 @@ export const getAllAssignments = async (req, res) => {
             .populate('assetId', 'name type assetId status')
             .populate('employeeId', 'name employeeId department');
         res.json(assignments);
-    } catch (error) {
+    }
+    catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }

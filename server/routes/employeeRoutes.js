@@ -6,17 +6,17 @@ import {
     updateEmployee,
     deleteEmployee
 } from '../controllers/employeeController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, admin, createEmployee)
-    .get(protect, getEmployees);
+    .post(verifyToken, requirePermission('manage_users'), createEmployee)
+    .get(verifyToken, getEmployees);
 
 router.route('/:id')
-    .get(protect, getEmployeeById)
-    .put(protect, admin, updateEmployee)
-    .delete(protect, admin, deleteEmployee);
+    .get(verifyToken, getEmployeeById)
+    .put(verifyToken, requirePermission('manage_users'), updateEmployee)
+    .delete(verifyToken, requirePermission('manage_users'), deleteEmployee);
 
 export default router;

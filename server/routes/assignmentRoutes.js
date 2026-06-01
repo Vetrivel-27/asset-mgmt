@@ -4,17 +4,15 @@ import {
     returnAsset,
     getAllAssignments
 } from '../controllers/assignmentController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Get all assignments
-router.route('/').get(protect, getAllAssignments);
-
+router.get('/', verifyToken, requirePermission('view_asset'), getAllAssignments);
 // Assign an asset
-router.route('/assign').post(protect, admin, assignAsset);
-
+router.post('/assign', verifyToken, requirePermission('manage_asset'), assignAsset);
 // Return an asset (update assignment)
-router.route('/return/:id').put(protect, admin, returnAsset);
+router.put('/return/:id', verifyToken, requirePermission('manage_asset'), returnAsset);
 
 export default router;

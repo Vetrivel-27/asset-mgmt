@@ -4,11 +4,13 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
-
-// // Route Imports
-// import employeeRoutes from './routes/employeeRoutes.js';
-// import assignmentRoutes from './routes/assignmentRoutes.js';
+import employeeRoutes from './routes/employeeRoutes.js';
 import {seedDatabase} from './config/seed.js';
+import requestRoutes from './routes/requestRoutes.js';
+import assetReportRoutes from './routes/assetReportRoutes.js';
+import assignmentRoutes from './routes/assignmentRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+// Route Imports
 
 dotenv.config();
 connectDB();
@@ -24,10 +26,13 @@ app.get('/', (req, res)=>{
 })
 
 // Mount API Routes
-// app.use('/api/employees', employeeRoutes);
-// app.use('/api/assignments', assignmentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/reports', assetReportRoutes)
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 connectDB().then(()=>{
     seedDatabase();
     app.listen(port, ()=>{

@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import crypto from 'crypto';
+import sendEmail from '../utils/sendEmail.js';
 
 export const register = async(req, res) => {
     try{
@@ -74,3 +76,64 @@ export const login = async(req, res) => {
         res.status(500).json({error:"Server error"});
     }
 };
+
+export const forgotPassword = async (req, res) =>{
+    try{
+        const user = await User.findOne({
+            email: req.body.email
+        });
+        if(!user){
+            return res.status(404).json({
+                message:"There is no user with that email."
+            });
+        }
+
+        const resetToken= crypto.randomBytes(20).toString('hex');
+        user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        user.resetPasswordExpures = Date.now()+10*60*1000;
+
+        await user.save();
+        const resetUrl = `http://localhost:3000/reset-passowrd/${resetToken}`;
+        const message = ` <p> Please click the link below to reset your password. This link is valid for only 10 minutes.</p>
+        <a href="${resetUrl}">${resetUrl}</a>`;
+
+        try{
+            await sendEmail({
+                email:user.email, subject:'Assest managemet - Password reset request', html:message
+            });
+            res.status(200).json({message: 'Email sent successfully'});
+        }
+        catch(e){
+            user.resetPasswordToken =undefined;
+            user.resetPasswordExpures = undefined;
+            await user.save();
+            return res.status(500).json({message:"Failed to send email.Please try again."})
+        }
+    }
+    catch(e){
+        res.status(500).json({message:"Server error"})
+    }
+
+};
+
+export const resetPassword = async (req,res)=>{
+    try{
+        const resetPasswordToken = crypto.createHash('sha256') .update(req.params.token).digest('hex');
+        const user = await User.findOne({resetPasswordToken, resetPasswordExpires:{$gt: Date.now()}});
+
+        if(!user){
+            return res.status(400).json({message:"Token is invalid or has expired"})
+        }
+
+        const saltrounds = 10;
+        user.password = await bcrypt.hash(req.body.password, saltrounds);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpures = undefined;
+        await user.save();
+        res.status(200).json({message: 'Password reset successfully'});
+    }
+    catch(e){
+        res.status(500).json({message:"Server error"})
+    }
+
+}

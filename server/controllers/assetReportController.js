@@ -1,0 +1,86 @@
+import AssetReport from '../models/AssetReport.js';
+import Employee from '../models/Employee.js';
+import Asset from '../models/Asset.js';
+
+//employee damage reporting
+export const createReport = async(req, res)=>{
+    try{
+        const {assetId, employeeId, description, reportDate} = req.body;
+
+        const asset = await Asset.findById(assetId);
+        if(!asset){
+            return res.status(404).json({message:"asset not found"});
+        }
+        const employee = await Employee.findOne({userId: req.user.id});
+        if(!employee){
+            return res.status(404).json({message:"Employee not found"});
+        }
+        const report = await AssetReport.create({
+            assetId, employeeId: employee._id, type, message
+        });
+
+        res.status(201).json({message:"Report submitted", report});
+    }
+    catch(e){
+        console.error(e);
+        res.status(500).json({message:"Server error"});
+    }
+};
+
+//employee report history
+export const getMyReport = async(req, res)=>{
+    try{
+        const employee = await Employee.findOne({userId: req.user.id});
+        if(!employee){
+            return res.status(404).json({message:"Employee not found"});
+        }
+        const reports = await AssetReport.find({employeeId: employee._id})
+        .populate('assetId', 'name type')
+        .sort({createdAt:-1});
+        res.status(200).json({reports});
+    }
+    catch(e){
+        console.error(e);
+        res.status(500).json({message:"server error"});
+    }
+};
+
+//view all reports - admin
+export const getAllReports = async (req, res) =>{
+    try{
+        const reports = await AssetReport.find({})
+        .populate('employeeId','name department employeeId')
+        .populate('assetId','assetId name')
+        .sort({createdAt:-1});
+        res.status(200).json(reports);
+    }
+    catch(e){
+        console.error(e);
+        res.status(500).json({message:"Server error"});
+    }
+};
+
+//update maintenance status- admin
+export const updateReportStatus = async(req, res)=>{
+    try{
+        const {status} = req.body;
+        const report = await AssetReport.findById(req.params.id);
+        if(!report){
+            return res.status(404).json({message:"Report not found"});
+        }
+        report.status = status;
+        await report.save();
+        if(status==='resolved'){
+            const asset = await Asset.findById(report.assetId);
+            if(asset && asset.status ==="maintenance"){
+                asset.status = "available";
+                await asset.save();
+            }
+        }
+        res.status(200).json({message:`report marked as ${status}`, report});
+    }
+    catch(e){
+        console.error(e);
+        res.status(500).json({message:"Server error"});
+    }
+};
