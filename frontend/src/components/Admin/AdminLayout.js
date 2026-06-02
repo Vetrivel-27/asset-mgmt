@@ -73,12 +73,28 @@ function AdminLayout() {
           </button>
         </aside>
         <main className="flex-1 p-8">
-          <div className="mb-6 flex flex-col gap-4 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold">Admin Panel</h1>
-              <p className="text-slate-500">
-                Manage assets, employees, assignments, and reports.
-              </p>
+          <div className="mb-6 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-black">
+                  Admin Dashboard
+                </p>
+                <h1 className="mt-3 text-4xl font-semibold text-black">
+                  Admin Panel
+                </h1>
+                <p className="mt-2 max-w-2xl text-slate-600">
+                  Review system status, manage users, and oversee assets from
+                  one place.
+                </p>
+              </div>
+              {/* <div className="inline-flex flex-wrap gap-3">
+                <span className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                  Live overview
+                </span>
+                <span className="rounded-2xl bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800">
+                  Quick actions
+                </span>
+              </div> */}
             </div>
           </div>
 
