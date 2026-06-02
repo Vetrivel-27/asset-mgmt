@@ -32,7 +32,7 @@ export const getAssets = async (req, res) => {
                 {assetId:{$regex: search, $options:'i'}},
             ];
         }
-        const assets = (await Asset.find(query)).toSorted({createdAt:-1});
+        const assets = await Asset.find(query).sort({createdAt:-1});
         res.json(assets);
     }
     catch(e){

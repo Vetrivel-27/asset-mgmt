@@ -90,10 +90,10 @@ export const forgotPassword = async (req, res) =>{
 
         const resetToken= crypto.randomBytes(20).toString('hex');
         user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-        user.resetPasswordExpures = Date.now()+10*60*1000;
+        user.resetPasswordExpires = Date.now()+10*60*1000;
 
         await user.save();
-        const resetUrl = `http://localhost:3000/reset-passowrd/${resetToken}`;
+        const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
         const message = ` <p> Please click the link below to reset your password. This link is valid for only 10 minutes.</p>
         <a href="${resetUrl}">${resetUrl}</a>`;
 
@@ -105,7 +105,7 @@ export const forgotPassword = async (req, res) =>{
         }
         catch(e){
             user.resetPasswordToken =undefined;
-            user.resetPasswordExpures = undefined;
+            user.resetPasswordExpires = undefined;
             await user.save();
             return res.status(500).json({message:"Failed to send email.Please try again."})
         }
@@ -128,7 +128,7 @@ export const resetPassword = async (req,res)=>{
         const saltrounds = 10;
         user.password = await bcrypt.hash(req.body.password, saltrounds);
         user.resetPasswordToken = undefined;
-        user.resetPasswordExpures = undefined;
+        user.resetPasswordExpires = undefined;
         await user.save();
         res.status(200).json({message: 'Password reset successfully'});
     }

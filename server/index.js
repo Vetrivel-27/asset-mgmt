@@ -10,10 +10,10 @@ import requestRoutes from './routes/requestRoutes.js';
 import assetReportRoutes from './routes/assetReportRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import roleRoutes from './routes/roleRoutes.js';
 // Route Imports
 
 dotenv.config();
-connectDB();
 const app = express();
 const port = process.env.SERVER_PORT || 5000;
 app.use(cors());
@@ -33,6 +33,7 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/reports', assetReportRoutes)
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/roles', roleRoutes);
 connectDB().then(()=>{
     seedDatabase();
     app.listen(port, ()=>{

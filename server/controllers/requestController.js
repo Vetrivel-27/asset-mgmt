@@ -49,8 +49,12 @@ export const getMyRequests = async (req, res) =>{
 export const getAllRequests = async(req, res)=> {
     try{
         const requests = await Request.find({})
-            .populate('employeeId', 'name department employeeId') //employee detail
-            .populate('assignedAssetId', 'name assetId') //asset detail if approved
+            .populate({
+                path: 'employeeId',
+                select: 'name department',
+                populate: { path: 'userId', select: 'username email' }
+            })
+            .populate('assignedAssetId', 'name assetId')
             .sort({createdAt:-1});
         res.status(200).json(requests);
     }

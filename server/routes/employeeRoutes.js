@@ -12,10 +12,10 @@ const router = express.Router();
 
 router.route('/')
     .post(verifyToken, requirePermission('manage_users'), createEmployee)
-    .get(verifyToken, getEmployees);
+    .get(verifyToken, requirePermission('view_users'), getEmployees);
 
 router.route('/:id')
-    .get(verifyToken, getEmployeeById)
+    .get(verifyToken, requirePermission('view_users'), getEmployeeById)
     .put(verifyToken, requirePermission('manage_users'), updateEmployee)
     .delete(verifyToken, requirePermission('manage_users'), deleteEmployee);
 

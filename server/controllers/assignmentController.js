@@ -68,7 +68,11 @@ export const getAllAssignments = async (req, res) => {
     try {
         const assignments = await Assignment.find({})
             .populate('assetId', 'name type assetId status')
-            .populate('employeeId', 'name employeeId department');
+            .populate({
+                path: 'employeeId',
+                select: 'name department',
+                populate: { path: 'userId', select: 'username email' }
+            });
         res.json(assignments);
     }
     catch (error) {
