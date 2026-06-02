@@ -14,6 +14,30 @@ function AdminEmployees() {
   const [editingId, setEditingId] = useState(null);
   const pageSize = 8;
 
+  const avatarColors = [
+    "bg-sky-500",
+    "bg-emerald-500",
+    "bg-violet-500",
+    "bg-rose-500",
+    "bg-orange-500",
+    "bg-cyan-500",
+    "bg-fuchsia-500",
+    "bg-lime-500",
+  ];
+
+  const getRandomAvatarColor = () =>
+    avatarColors[Math.floor(Math.random() * avatarColors.length)];
+
+  const getAvatarColor = (employee) => {
+    if (employee.avatarColor) return employee.avatarColor;
+    const seed = employee.email || employee.name || "unknown";
+    const hash = Array.from(seed).reduce(
+      (acc, char) => acc + char.charCodeAt(0),
+      0,
+    );
+    return avatarColors[Math.abs(hash) % avatarColors.length];
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -76,6 +100,10 @@ function AdminEmployees() {
       email: formEmail.trim(),
       role: formRole,
       assetsBorrowed: 0,
+      avatarColor: editingId
+        ? employees.find((item) => item._id === editingId)?.avatarColor ||
+          getRandomAvatarColor()
+        : getRandomAvatarColor(),
     };
 
     if (editingId) {
@@ -137,17 +165,14 @@ function AdminEmployees() {
           <p className="mt-2 text-sm text-slate-500">
             Enter a name and contact email to create an employee profile.
           </p>
-          <form
-            onSubmit={handleSubmit}
-            className="mt-5 grid gap-4 sm:grid-cols-2"
-          >
+          <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Name</span>
               <input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Employee full name"
-                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
               />
             </label>
             <label className="block">
@@ -157,15 +182,15 @@ function AdminEmployees() {
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
                 placeholder="employee@example.com"
-                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
               />
             </label>
-            <label className="block sm:col-span-2">
+            <label className="block">
               <span className="text-sm font-medium text-slate-700">Role</span>
               <select
                 value={formRole}
                 onChange={(e) => setFormRole(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
               >
                 <option>Staff</option>
                 <option>Manager</option>
@@ -173,10 +198,10 @@ function AdminEmployees() {
                 <option>Administrator</option>
               </select>
             </label>
-            <div className="sm:col-span-2 flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="submit"
-                className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
+                className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900"
               >
                 {editingId ? "Save changes" : "Add employee"}
               </button>
@@ -186,7 +211,7 @@ function AdminEmployees() {
                   resetForm();
                   setShowForm(false);
                 }}
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Close
               </button>
@@ -254,7 +279,9 @@ function AdminEmployees() {
                   key={employee._id || employee.employeeId || employee.email}
                   className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm"
                 >
-                  <div className="mx-auto h-16 w-16 rounded-full bg-yellow-400 flex items-center justify-center text-white font-semibold text-xl">
+                  <div
+                    className={`mx-auto h-16 w-16 rounded-full ${getAvatarColor(employee)} flex items-center justify-center text-white font-semibold text-xl`}
+                  >
                     {employee.name
                       ? employee.name
                           .split(" ")
