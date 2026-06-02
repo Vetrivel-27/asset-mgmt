@@ -45,7 +45,7 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className=" grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Total Assets", value: stats.assets },
           { label: "Employees", value: stats.employees },
@@ -54,7 +54,9 @@ function AdminDashboard() {
         ].map((card) => (
           <div
             key={card.label}
-            className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+            className="p-6 bg-white rounded-xl shadow-md cursor-pointer
+                    transition-all duration-300 ease-in-out
+                    hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
           >
             <p className="text-sm uppercase tracking-[0.2em] text-slate-500">
               {card.label}
