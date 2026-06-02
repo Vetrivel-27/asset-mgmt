@@ -42,11 +42,9 @@ export const returnAsset = async (req, res) => {
         if (!assignment) {
             return res.status(404).json({ message: 'Assignment not found' });
         }
-        
         if (assignment.returnDate) {
             return res.status(400).json({ message: 'Asset is already returned' });
         }
-
         assignment.returnDate = new Date();
         await assignment.save();
 
@@ -76,6 +74,22 @@ export const getAllAssignments = async (req, res) => {
         res.json(assignments);
     }
     catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const getMyAssignments = async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ userId: req.user.id });
+        if (!employee) {
+            return res.status(404).json({ message: "Employee profile not found" });
+        }
+        const assignments = await Assignment.find({ employeeId: employee._id })
+            .populate('assetId', 'name type assetId status')
+            .sort({ createdAt: -1 });
+        res.json(assignments);
+    } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
