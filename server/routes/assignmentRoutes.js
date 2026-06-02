@@ -2,12 +2,15 @@ import express from 'express';
 import {
     assignAsset,
     returnAsset,
-    getAllAssignments
+    getAllAssignments,
+    getMyAssignments
 } from '../controllers/assignmentController.js';
 import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+// Get current employee's assignments
+router.get('/my-assignments', verifyToken, requirePermission('view_asset'), getMyAssignments);
 // Get all assignments
 router.get('/', verifyToken, requirePermission('assign_asset'), getAllAssignments);
 // Assign an asset

@@ -28,6 +28,7 @@ export const seedDatabase = async () => {
                 
                 { name: "view_report", group: "Report" },
                 { name: "manage_report", group: "Report" },
+                { name: "view_dashboard", group: "Report" },
                 
                 // { name: "send_notification", group: "Notification" },
                 // { name: "view_notification", group: "Notification" },
@@ -56,7 +57,7 @@ export const seedDatabase = async () => {
             });
             // Employee Role
             const employeePerms = allPermissions.filter(p =>
-                ["view_asset","borrow_asset","return_asset","view_inventory","report_damage","view_damage"].includes(p.name)
+                ["view_asset","borrow_asset","return_asset","view_inventory","report_damage","view_damage","view_dashboard"].includes(p.name)
             );
             await Role.create({
                 name: "Employee",
