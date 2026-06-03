@@ -4,7 +4,7 @@ import Employee from "../models/Employee.js";
 //creation by employee
 export const createRequest = async(req, res)=>{
     try{
-        const {assetType, reason} = req.body;
+        const {assetType, reason, tentativeReturnDate} = req.body;
 
         const employee = await Employee.findOne({
             userId: req.user.id
@@ -16,7 +16,8 @@ export const createRequest = async(req, res)=>{
         }
         const newRequest = await Request.create({
             employeeId: employee._id,
-            assetType, reason
+            assetType, reason,
+            tentativeReturnDate: tentativeReturnDate ? new Date(tentativeReturnDate) : null
         });
 
         res.status(201).json({
@@ -36,7 +37,9 @@ export const getMyRequests = async (req, res) =>{
         if(!employee){
             return res.status(404).json({message: "Employee not found."});
         }
-        const requests = await Request.find({employeeId:employee._id}).sort({createdAt: -1});
+        const requests = await Request.find({employeeId:employee._id})
+            .populate('assignedAssetId', 'name assetId')
+            .sort({createdAt: -1});
         res.status(200).json({requests});
     }
     catch(e){

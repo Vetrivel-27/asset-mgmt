@@ -1,9 +1,28 @@
 import Employee from '../models/Employee.js';
 import User from '../models/User.js';
 import Role from '../models/Role.js';
+import Assignment from '../models/Assignment.js';
 import crypto from 'crypto';
 import sendEmail from '../utils/sendEmail.js';
 import bcrypt from 'bcrypt';
+
+export const getEmployeeProfile = async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ userId: req.user.id })
+            .populate({
+                path: 'userId',
+                select: 'username email role',
+                populate: { path: 'role', select: 'name' }
+            });
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee profile not found' });
+        }
+        res.json(employee);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
 export const createEmployee = async (req, res) => {
     try {
@@ -81,6 +100,21 @@ export const getEmployees = async (req, res) => {
             populate: { path: 'role', select: 'name' }
         });
         res.json(employees);
+
+        // Compute borrowed assets count for each employee
+        const employeesWithCount = await Promise.all(employees.map(async (emp) => {
+            const count = await Assignment.countDocuments({
+                employeeId: emp._id,
+                returnedDate: null
+            });
+            return {
+                ...emp.toObject(),
+                assetsBorrowedCount: count
+            };
+        }));
+
+        res.json(employeesWithCount);
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
