@@ -13,19 +13,25 @@ function AdminDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const assetsRes = await fetch(`${API_URL}/api/assets`);
-        const employeesRes = await fetch(`${API_URL}/api/employees`);
-        const assignmentsRes = await fetch(`${API_URL}/api/assignments`);
+        const token = localStorage.getItem("authToken");
+        const headers = { Authorization: `Bearer ${token}` };
+        const assetsRes = await fetch(`${API_URL}/api/assets`, { headers });
+        const employeesRes = await fetch(`${API_URL}/api/employees`, { headers });
+        const assignmentsRes = await fetch(`${API_URL}/api/assignments`, { headers });
 
         const assets = await assetsRes.json();
         const employees = await employeesRes.json();
         const assignments = await assignmentsRes.json();
 
+        const assetsArr = Array.isArray(assets) ? assets : [];
+        const employeesArr = Array.isArray(employees) ? employees : [];
+        const assignmentsArr = Array.isArray(assignments) ? assignments : [];
+
         setStats({
-          assets: assets.length,
-          employees: employees.length,
-          activeAssignments: assignments.filter((a) => !a.returned).length,
-          pendingReturns: assignments.filter((a) => a.needsReturn).length,
+          assets: assetsArr.length,
+          employees: employeesArr.length,
+          activeAssignments: assignmentsArr.filter((a) => !a.returned).length,
+          pendingReturns: assignmentsArr.filter((a) => a.needsReturn).length,
         });
       } catch (error) {
         console.error(error);

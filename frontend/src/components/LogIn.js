@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../config";
 
 function LogIn({ onLogin }) {
   const navigate = useNavigate();
@@ -9,38 +10,42 @@ function LogIn({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const ADMIN_EMAIL = "admin@gmail.com";
-  const ADMIN_PASSWORD = "admin123";
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      // const payload = { email, password };
-      // TODO: call your login API
-      // const data = await authService.login(payload);
-      // onLogin(data);
-      const EMPLOYEE_EMAIL = "employee@gmail.com";
-      const EMPLOYEE_PASSWORD = "emp123";
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        localStorage.setItem("userRole", "admin");
-        localStorage.setItem("userEmail", email);
-        navigate("/admin");
-        if (onLogin) onLogin({ email, role: "admin" });
-      } else if (email === EMPLOYEE_EMAIL && password === EMPLOYEE_PASSWORD) {
-        localStorage.setItem("userRole", "employee");
-        localStorage.setItem("userEmail", email);
-        localStorage.setItem("employeeEmail", email);
-        navigate("/employee");
-        if (onLogin) onLogin({ email, role: "employee" });
-      } else {
-        setError("Invalid email or password");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Invalid email or password");
       }
+
+      const roleName = data.user?.roleName?.toLowerCase();
+      if (!roleName) {
+        throw new Error("Login response did not include a role.");
+      }
+
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("userRole", roleName);
+      localStorage.setItem("userEmail", data.user.email);
+
+      if (roleName === "admin") {
+        navigate("/admin");
+      } else {
+        localStorage.setItem("employeeEmail", data.user.email);
+        navigate("/employee");
+      }
+
+      if (onLogin) onLogin({ ...data.user, role: roleName, token: data.token });
     } catch (err) {
-      setError("Login failed. Please check your credentials.");
+      setError(err.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }

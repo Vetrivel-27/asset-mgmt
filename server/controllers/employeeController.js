@@ -26,7 +26,7 @@ export const getEmployeeProfile = async (req, res) => {
 
 export const createEmployee = async (req, res) => {
     try {
-        const { name, employeeId, department, email } = req.body;
+        const { name, employeeId, department, email, roleId } = req.body;
 
         // Check if User with this email or username already exists
         const userExists = await User.findOne({ $or: [{ username: employeeId }, { email }] });
@@ -35,7 +35,12 @@ export const createEmployee = async (req, res) => {
         }
 
         // Create User account first
-        const employeeRole = await Role.findOne({ name: 'Employee' });
+        const employeeRole = roleId
+            ? await Role.findById(roleId)
+            : await Role.findOne({ name: 'employee' });
+        if (!employeeRole) {
+            return res.status(500).json({ message: 'Employee role not found' });
+        }
         const resetToken = crypto.randomBytes(20).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
         const hashedPassword = await bcrypt.hash("pass123", 10);
@@ -57,7 +62,7 @@ export const createEmployee = async (req, res) => {
         });
 
         // Send setup email
-        const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
         const message = `
             <h1>Asset Management System</h1>
             <p>Welcome, ${name}! Your account has been created.</p>
@@ -75,7 +80,11 @@ export const createEmployee = async (req, res) => {
         }
 
         // Return employee with user info populated
-        const populatedEmployee = await Employee.findById(employee._id).populate('userId', 'username email');
+        const populatedEmployee = await Employee.findById(employee._id).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         res.status(201).json(populatedEmployee);
     } catch (error) {
         console.error(error);
@@ -90,6 +99,7 @@ export const getEmployees = async (req, res) => {
             select: 'username email role',
             populate: { path: 'role', select: 'name' }
         });
+        res.json(employees);
 
         // Compute borrowed assets count for each employee
         const employeesWithCount = await Promise.all(employees.map(async (emp) => {
@@ -104,6 +114,7 @@ export const getEmployees = async (req, res) => {
         }));
 
         res.json(employeesWithCount);
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -122,6 +133,25 @@ export const getEmployeeById = async (req, res) => {
         } else {
             res.status(404).json({ message: 'Employee not found' });
         }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const getMyEmployeeProfile = async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ userId: req.user.id }).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
+
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee profile not found' });
+        }
+
+        res.json(employee);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

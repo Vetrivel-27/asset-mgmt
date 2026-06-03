@@ -1,4 +1,4 @@
-﻿import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -63,10 +63,23 @@ function AdminLayout() {
               >
                 Reports
               </NavLink>
+              <NavLink
+                to="/admin/roles"
+                className={({ isActive }) =>
+                  `block rounded-2xl px-4 py-3 text-sm font-medium ${isActive ? "bg-yellow-200 text-slate-900" : "text-slate-700 hover:bg-slate-100"}`
+                }
+              >
+                Roles
+              </NavLink>
             </nav>
           </div>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => {
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("userEmail");
+            navigate("/login", { replace: true });
+          }}
             className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 mt-auto w-max flex justify-center items-center"
           >
             Logout

@@ -11,9 +11,12 @@ function AdminAssets() {
   useEffect(() => {
     async function loadAssets() {
       try {
-        const res = await fetch(`${API_URL}/api/assets`);
+        const token = localStorage.getItem("authToken");
+        const res = await fetch(`${API_URL}/api/assets`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
-        setAssets(data);
+        setAssets(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error(error);
       } finally {
@@ -84,7 +87,7 @@ function AdminAssets() {
                   Asset
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Category
+                  Type
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
                   Status
@@ -123,7 +126,7 @@ function AdminAssets() {
                       {asset.name}
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-500">
-                      {asset.category}
+                      {asset.type}
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-500">
                       {asset.status}
