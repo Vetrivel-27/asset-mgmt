@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { API_URL } from "../config";
 
 function ForgotPassword() {
   const navigate = useNavigate();
+  const { token } = useParams();
   const [email, setEmail] = useState("");
-  const [step, setStep] = useState("email"); // email, otp, reset
+  const [step, setStep] = useState(token ? "reset" : "email");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -13,22 +15,45 @@ function ForgotPassword() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
+  const requestJson = async (path, options) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Request failed");
+    }
+
+    return data;
+  };
+
+  const validatePassword = () => {
+    if (!newPassword || !confirmPassword) {
+      throw new Error("Please fill in all fields");
+    }
+    if (newPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters");
+    }
+    if (newPassword !== confirmPassword) {
+      throw new Error("Passwords do not match");
+    }
+  };
+
+  const handleEmailSubmit = async (event) => {
+    event.preventDefault();
     setError("");
     setMessage("");
     setLoading(true);
 
     try {
-      // Simulate email verification
-      if (!email.includes("@")) {
-        throw new Error("Please enter a valid email");
-      }
-      setMessage("✓ OTP sent to your email");
-      setTimeout(() => {
-        setStep("otp");
-        setMessage("");
-      }, 1500);
+      await requestJson("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      setMessage("OTP sent to your email.");
+      setStep("otp");
     } catch (err) {
       setError(err.message || "Failed to send OTP");
     } finally {
@@ -36,51 +61,55 @@ function ForgotPassword() {
     }
   };
 
-  const handleOtpSubmit = (e) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-
-    if (otp.length !== 6) {
-      setError("OTP must be 6 digits");
-      return;
-    }
-
-    // Simulate OTP verification
-    if (otp === "123456") {
-      setMessage("✓ OTP verified");
-      setTimeout(() => {
-        setStep("reset");
-        setMessage("");
-      }, 1500);
-    } else {
-      setError("Invalid OTP. Try 123456 for demo");
-    }
-  };
-
-  const handleResetSubmit = (e) => {
-    e.preventDefault();
+  const handleOtpSubmit = async (event) => {
+    event.preventDefault();
     setError("");
     setMessage("");
     setLoading(true);
 
     try {
-      if (!newPassword || !confirmPassword) {
-        throw new Error("Please fill in all fields");
-      }
-      if (newPassword.length < 6) {
-        throw new Error("Password must be at least 6 characters");
-      }
-      if (newPassword !== confirmPassword) {
-        throw new Error("Passwords do not match");
+      if (otp.length !== 6) {
+        throw new Error("OTP must be 6 digits");
       }
 
-      setMessage("✓ Password reset successfully");
-      setTimeout(() => {
-        navigate("/login");
-      }, 2000);
+      await requestJson("/api/auth/verify-reset-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      });
+      setMessage("OTP verified. Create your new password.");
+      setStep("reset");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to verify OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      validatePassword();
+
+      if (token) {
+        await requestJson(`/api/auth/reset-password/${token}`, {
+          method: "PUT",
+          body: JSON.stringify({ password: newPassword }),
+        });
+      } else {
+        await requestJson("/api/auth/reset-password-otp", {
+          method: "POST",
+          body: JSON.stringify({ email, otp, password: newPassword }),
+        });
+      }
+
+      setMessage("Password reset successfully.");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      setError(err.message || "Failed to reset password");
     } finally {
       setLoading(false);
     }
@@ -89,9 +118,7 @@ function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-gradient-to-br from-slate-100 via-yellow-50 to-slate-100">
       <div className="w-full max-w-md">
-        {/* Card */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header */}
           <div className="bg-gradient-to-r from-yellow-400 to-yellow-300 px-8 py-12 text-center">
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-lg mb-4">
               <svg
@@ -112,53 +139,52 @@ function ForgotPassword() {
               Reset Password
             </h1>
             <p className="text-sm text-slate-700 mt-2">
-              {step === "email" && "Enter your email to get started"}
+              {step === "email" && "Enter your email to receive an OTP"}
               {step === "otp" && "Enter the OTP sent to your email"}
               {step === "reset" && "Create your new password"}
             </p>
           </div>
 
-          {/* Body */}
           <div className="px-8 py-10">
-            {/* Progress Indicator */}
-            <div className="flex justify-between mb-8">
-              <div
-                className={`flex-1 h-1 rounded-full ${
-                  step === "email" || step === "otp" || step === "reset"
-                    ? "bg-yellow-400"
-                    : "bg-slate-200"
-                }`}
-              />
-              <div
-                className={`flex-1 h-1 rounded-full mx-2 ${
-                  step === "otp" || step === "reset"
-                    ? "bg-yellow-400"
-                    : "bg-slate-200"
-                }`}
-              />
-              <div
-                className={`flex-1 h-1 rounded-full ${
-                  step === "reset" ? "bg-yellow-400" : "bg-slate-200"
-                }`}
-              />
-            </div>
+            {!token && (
+              <div className="flex justify-between mb-8">
+                <div
+                  className={`flex-1 h-1 rounded-full ${
+                    step === "email" || step === "otp" || step === "reset"
+                      ? "bg-yellow-400"
+                      : "bg-slate-200"
+                  }`}
+                />
+                <div
+                  className={`flex-1 h-1 rounded-full mx-2 ${
+                    step === "otp" || step === "reset"
+                      ? "bg-yellow-400"
+                      : "bg-slate-200"
+                  }`}
+                />
+                <div
+                  className={`flex-1 h-1 rounded-full ${
+                    step === "reset" ? "bg-yellow-400" : "bg-slate-200"
+                  }`}
+                />
+              </div>
+            )}
 
-            {/* Email Step */}
             {step === "email" && (
               <form onSubmit={handleEmailSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-2">
                     Email Address
-                  </label>
+                  </span>
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
                     required
                     className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
                   />
-                </div>
+                </label>
                 {error && (
                   <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm">
                     {error}
@@ -179,27 +205,24 @@ function ForgotPassword() {
               </form>
             )}
 
-            {/* OTP Step */}
             {step === "otp" && (
               <form onSubmit={handleOtpSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-2">
                     Enter OTP
-                  </label>
+                  </span>
                   <input
                     type="text"
                     value={otp}
-                    onChange={(e) =>
-                      setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    onChange={(event) =>
+                      setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
                     }
                     placeholder="000000"
                     maxLength="6"
+                    required
                     className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-center text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 tracking-widest font-mono text-2xl"
                   />
-                  <p className="text-xs text-slate-500 mt-2 text-center">
-                    Demo: use <strong>123456</strong>
-                  </p>
-                </div>
+                </label>
                 {error && (
                   <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm">
                     {error}
@@ -212,50 +235,54 @@ function ForgotPassword() {
                 )}
                 <button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-yellow-400 to-yellow-300 text-slate-900 font-semibold py-3 rounded-2xl hover:from-yellow-500 hover:to-yellow-400 transition"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-yellow-400 to-yellow-300 text-slate-900 font-semibold py-3 rounded-2xl hover:from-yellow-500 hover:to-yellow-400 transition disabled:opacity-50"
                 >
-                  Verify OTP
+                  {loading ? "Verifying..." : "Verify OTP"}
                 </button>
               </form>
             )}
 
-            {/* Reset Password Step */}
             {step === "reset" && (
               <form onSubmit={handleResetSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-2">
                     New Password
-                  </label>
+                  </span>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={(event) => setNewPassword(event.target.value)}
                       placeholder="Enter new password"
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                      required
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-20 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setShowPassword((current) => !current)}
                       className="absolute right-4 top-3 text-sm font-semibold text-slate-600 hover:text-slate-900"
                     >
                       {showPassword ? "Hide" : "Show"}
                     </button>
                   </div>
-                </div>
+                </label>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block">
+                  <span className="block text-sm font-medium text-slate-700 mb-2">
                     Confirm Password
-                  </label>
+                  </span>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(event) =>
+                      setConfirmPassword(event.target.value)
+                    }
                     placeholder="Confirm new password"
+                    required
                     className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
                   />
-                </div>
+                </label>
 
                 {error && (
                   <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm">
@@ -278,12 +305,11 @@ function ForgotPassword() {
               </form>
             )}
 
-            {/* Back to Login */}
             <button
               onClick={() => navigate("/login")}
               className="w-full mt-6 text-slate-600 hover:text-slate-900 text-sm font-medium"
             >
-              ← Back to Login
+              Back to Login
             </button>
           </div>
         </div>

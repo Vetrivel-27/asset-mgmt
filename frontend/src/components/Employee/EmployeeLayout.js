@@ -63,7 +63,7 @@ function EmployeeLayout() {
             Logout
           </button>
         </aside>
-        <main className="flex-1 p-8">
+        <main className="flex-1 py-8 pl-8 pr-0">
           <Outlet />
         </main>
       </div>

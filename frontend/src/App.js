@@ -8,6 +8,7 @@ import AdminAssets from "./components/Admin/AdminAssets.js";
 import AdminEmployees from "./components/Admin/AdminEmployees.js";
 import AdminAssignments from "./components/Admin/AdminAssignments.js";
 import AdminReports from "./components/Admin/AdminReports.js";
+import AdminRoles from "./components/Admin/AdminRoles.js";
 import EmployeeLayout from "./components/Employee/EmployeeLayout.js";
 import EmployeeAssets from "./components/Employee/EmployeeAssets.js";
 import EmployeeStatus from "./components/Employee/EmployeeStatus.js";
@@ -20,12 +21,14 @@ function App() {
       <Routes>
         <Route path="/login" element={<LogIn />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password/:token" element={<ForgotPassword />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="assets" element={<AdminAssets />} />
           <Route path="employees" element={<AdminEmployees />} />
           <Route path="assignments" element={<AdminAssignments />} />
           <Route path="reports" element={<AdminReports />} />
+          <Route path="roles" element={<AdminRoles />} />
         </Route>
         <Route path="/employee" element={<EmployeeLayout />}>
           <Route index element={<EmployeeAssets />} />

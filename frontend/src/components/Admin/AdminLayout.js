@@ -63,6 +63,14 @@ function AdminLayout() {
               >
                 Reports
               </NavLink>
+              <NavLink
+                to="/admin/roles"
+                className={({ isActive }) =>
+                  `block rounded-2xl px-4 py-3 text-sm font-medium ${isActive ? "bg-yellow-200 text-slate-900" : "text-slate-700 hover:bg-slate-100"}`
+                }
+              >
+                Roles
+              </NavLink>
             </nav>
           </div>
           <button

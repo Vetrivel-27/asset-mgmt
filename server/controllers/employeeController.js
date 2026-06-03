@@ -7,7 +7,7 @@ import bcrypt from 'bcrypt';
 
 export const createEmployee = async (req, res) => {
     try {
-        const { name, employeeId, department, email } = req.body;
+        const { name, employeeId, department, email, roleId } = req.body;
 
         // Check if User with this email or username already exists
         const userExists = await User.findOne({ $or: [{ username: employeeId }, { email }] });
@@ -16,7 +16,12 @@ export const createEmployee = async (req, res) => {
         }
 
         // Create User account first
-        const employeeRole = await Role.findOne({ name: 'Employee' });
+        const employeeRole = roleId
+            ? await Role.findById(roleId)
+            : await Role.findOne({ name: 'employee' });
+        if (!employeeRole) {
+            return res.status(500).json({ message: 'Employee role not found' });
+        }
         const resetToken = crypto.randomBytes(20).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
         const hashedPassword = await bcrypt.hash("pass123", 10);
@@ -38,7 +43,7 @@ export const createEmployee = async (req, res) => {
         });
 
         // Send setup email
-        const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
         const message = `
             <h1>Asset Management System</h1>
             <p>Welcome, ${name}! Your account has been created.</p>
@@ -56,7 +61,11 @@ export const createEmployee = async (req, res) => {
         }
 
         // Return employee with user info populated
-        const populatedEmployee = await Employee.findById(employee._id).populate('userId', 'username email');
+        const populatedEmployee = await Employee.findById(employee._id).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         res.status(201).json(populatedEmployee);
     } catch (error) {
         console.error(error);
@@ -66,7 +75,11 @@ export const createEmployee = async (req, res) => {
 
 export const getEmployees = async (req, res) => {
     try {
-        const employees = await Employee.find({}).populate('userId', 'username email');
+        const employees = await Employee.find({}).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         res.json(employees);
     } catch (error) {
         console.error(error);
@@ -76,7 +89,11 @@ export const getEmployees = async (req, res) => {
 
 export const getEmployeeById = async (req, res) => {
     try {
-        const employee = await Employee.findById(req.params.id).populate('userId', 'username email');
+        const employee = await Employee.findById(req.params.id).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         if (employee) {
             res.json(employee);
         } else {
@@ -106,7 +123,11 @@ export const updateEmployee = async (req, res) => {
         }
 
         const updatedEmployee = await employee.save();
-        const populated = await Employee.findById(updatedEmployee._id).populate('userId', 'username email');
+        const populated = await Employee.findById(updatedEmployee._id).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         res.json(populated);
     } catch (error) {
         console.error(error);

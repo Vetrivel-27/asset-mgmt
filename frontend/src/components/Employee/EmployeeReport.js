@@ -108,7 +108,7 @@ function EmployeeReport() {
               high-impact feedback signal to your admin team.
             </p>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm">
+          {/* <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
               Pro tip
             </p>
@@ -116,25 +116,19 @@ function EmployeeReport() {
               Use the severity slider to highlight urgent issues like damage or
               missing equipment.
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+      <div>
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="space-y-6">
-            <div className="rounded-[32px] border border-slate-100 bg-slate-50 p-5">
-              <div className="flex items-center justify-between gap-4">
+            <div className="rounded-[32px] border border-slate-100 bg-black p-5">
+              <div className="flex items-center justify-between gap-4 bg-black">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                  <p className="text-xs uppercase tracking-[0.28em] text-white">
                     Reporting channel
                   </p>
-                  <h3 className="mt-3 text-lg font-semibold text-slate-900">
-                    Asset impact signal
-                  </h3>
-                </div>
-                <div className="rounded-2xl bg-yellow-100 px-4 py-2 text-sm font-semibold text-yellow-700">
-                  Live feedback
                 </div>
               </div>
             </div>
@@ -267,7 +261,7 @@ function EmployeeReport() {
           </div>
         </section>
 
-        <aside className="space-y-6 rounded-[32px] border border-slate-200 bg-slate-950 p-6 shadow-sm text-slate-100">
+        {/* <aside className="space-y-6 rounded-[32px] border border-slate-200 bg-slate-950 p-6 shadow-sm text-slate-100">
           <div className="rounded-[32px] border border-slate-800 bg-slate-900 p-5">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
               Report dashboard
@@ -325,7 +319,7 @@ function EmployeeReport() {
               </div>
             </div>
           </div>
-        </aside>
+        </aside> */}
       </div>
     </div>
   );

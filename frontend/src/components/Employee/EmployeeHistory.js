@@ -112,7 +112,7 @@ function EmployeeHistory() {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               Borrowed
             </p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">
+            <p className="mt-3 text-3xl font-semibold text-orange-300">
               {stats.total}
             </p>
           </div>
@@ -120,7 +120,7 @@ function EmployeeHistory() {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               Returned
             </p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">
+            <p className="mt-3 text-3xl font-semibold text-green-500">
               {stats.returned}
             </p>
           </div>
@@ -128,7 +128,7 @@ function EmployeeHistory() {
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               Pending
             </p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">
+            <p className="mt-3 text-3xl font-semibold text-red-500">
               {stats.pending}
             </p>
           </div>
