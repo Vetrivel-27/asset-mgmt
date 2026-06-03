@@ -38,11 +38,9 @@ function LogIn({ onLogin }) {
 
       if (roleName === "admin") {
         navigate("/admin");
-      } else if (roleName === "employee") {
+      } else {
         localStorage.setItem("employeeEmail", data.user.email);
         navigate("/employee");
-      } else {
-        navigate("/login");
       }
 
       if (onLogin) onLogin({ ...data.user, role: roleName, token: data.token });

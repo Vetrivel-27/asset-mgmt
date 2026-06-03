@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
 
 function AdminAssignments() {
@@ -10,7 +10,10 @@ function AdminAssignments() {
 
     async function loadAssignments() {
       try {
-        const res = await fetch(`${API_URL}/api/assignments`);
+        const token = localStorage.getItem("authToken");
+        const res = await fetch(`${API_URL}/api/assignments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         if (mounted) setAssignments(Array.isArray(data) ? data : []);
       } catch (error) {

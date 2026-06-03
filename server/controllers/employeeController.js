@@ -105,6 +105,25 @@ export const getEmployeeById = async (req, res) => {
     }
 };
 
+export const getMyEmployeeProfile = async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ userId: req.user.id }).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
+
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee profile not found' });
+        }
+
+        res.json(employee);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 export const updateEmployee = async (req, res) => {
     try {
         const employee = await Employee.findById(req.params.id);

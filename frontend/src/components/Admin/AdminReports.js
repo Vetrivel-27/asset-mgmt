@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 
 function AdminReports() {
@@ -10,9 +10,11 @@ function AdminReports() {
     let mounted = true;
     async function load() {
       try {
+        const token = localStorage.getItem("authToken");
+        const headers = { Authorization: `Bearer ${token}` };
         const [assetsRes, assignmentsRes] = await Promise.all([
-          fetch(`${API_URL}/api/assets`),
-          fetch(`${API_URL}/api/assignments`),
+          fetch(`${API_URL}/api/assets`, { headers }),
+          fetch(`${API_URL}/api/assignments`, { headers }),
         ]);
         const [assetsData, assignmentsData] = await Promise.all([
           assetsRes.json(),
@@ -258,7 +260,7 @@ function AdminReports() {
           </ul>
         </div>
 
-        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        {/* <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-900">Actions</h3>
           <div className="mt-4 flex flex-col gap-3">
             <button className="w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-slate-900">
@@ -268,7 +270,7 @@ function AdminReports() {
               View full report
             </button>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
