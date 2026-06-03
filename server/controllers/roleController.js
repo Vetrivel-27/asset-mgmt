@@ -1,10 +1,20 @@
 import Role from '../models/Role.js';
 import Permission from '../models/Permission.js';
+import User from '../models/User.js';
 
 export const getRoles = async (req, res) => {
     try {
         const roles = await Role.find({}).populate('permissions', 'name group');
-        res.json(roles);
+        
+        const rolesWithCounts = await Promise.all(roles.map(async (role) => {
+            const employeeCount = await User.countDocuments({ role: role._id });
+            return {
+                ...role.toObject(),
+                employeeCount
+            };
+        }));
+
+        res.json(rolesWithCounts);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

@@ -4,7 +4,7 @@ import Employee from '../models/Employee.js';
 
 export const assignAsset = async (req, res) => {
     try {
-        const { assetId, employeeId } = req.body;
+        const { assetId, employeeId, tentativeReturnDate } = req.body;
 
         // Check if asset and employee exist
         const asset = await Asset.findById(assetId);
@@ -21,7 +21,8 @@ export const assignAsset = async (req, res) => {
         const assignment = await Assignment.create({
             assetId,
             employeeId,
-            assignedDate: new Date()
+            assignedDate: new Date(),
+            tentativeReturnDate: tentativeReturnDate ? new Date(tentativeReturnDate) : null
         });
 
         // Update asset status
@@ -42,10 +43,10 @@ export const returnAsset = async (req, res) => {
         if (!assignment) {
             return res.status(404).json({ message: 'Assignment not found' });
         }
-        if (assignment.returnDate) {
+        if (assignment.returnedDate) {
             return res.status(400).json({ message: 'Asset is already returned' });
         }
-        assignment.returnDate = new Date();
+        assignment.returnedDate = new Date();
         await assignment.save();
 
         // Update asset status back to available
