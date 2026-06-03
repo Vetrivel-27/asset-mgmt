@@ -19,7 +19,7 @@ export const createAsset = async (req, res) => {
 
 export const getAssets = async (req, res) => {
     try{
-        const{status, type, search} = req.query;
+        const{status, type, search, page, limit} = req.query;
         let query={};
         //filter by status
         if(status) query.status = status;
@@ -32,8 +32,26 @@ export const getAssets = async (req, res) => {
                 {assetId:{$regex: search, $options:'i'}},
             ];
         }
-        const assets = await Asset.find(query).sort({createdAt:-1});
-        res.json(assets);
+        //pagination
+        if (page || limit) {
+            const pageNum = parseInt(page) || 1;
+            const limitNum = parseInt(limit) || 10;
+            const skip = (pageNum - 1) * limitNum;
+            const total = await Asset.countDocuments(query);
+            const assets = await Asset.find(query)
+                .sort({createdAt:-1})
+                .skip(skip)
+                .limit(limitNum);
+            res.json({
+                assets,
+                pagination: {total, pages: Math.ceil(total / limitNum),
+                    currentPage: pageNum,limit: limitNum
+                }
+            });
+        } else {
+            const assets = await Asset.find(query).sort({createdAt:-1});
+            res.json(assets);
+        }
     }
     catch(e){
         console.error(e);

@@ -146,7 +146,11 @@ export const updateEmployee = async (req, res) => {
         }
 
         const updatedEmployee = await employee.save();
-        const populated = await Employee.findById(updatedEmployee._id).populate('userId', 'username email');
+        const populated = await Employee.findById(updatedEmployee._id).populate({
+            path: 'userId',
+            select: 'username email role',
+            populate: { path: 'role', select: 'name' }
+        });
         res.json(populated);
     } catch (error) {
         console.error(error);
