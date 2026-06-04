@@ -75,7 +75,7 @@ function EmployeeHistory() {
   const stats = useMemo(() => {
     const total = filteredHistory.length;
     const returned = filteredHistory.filter(
-      (record) => record.returnDate,
+      (record) => record.returnedDate,
     ).length;
     const pending = total - returned;
     return { total, returned, pending };
@@ -213,8 +213,8 @@ function EmployeeHistory() {
                               : "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.returnDate
-                              ? new Date(record.returnDate).toLocaleDateString()
+                            {record.returnedDate
+                              ? new Date(record.returnedDate).toLocaleDateString()
                               : "—"}
                           </td>
                           <td className="px-4 py-4">
@@ -271,8 +271,8 @@ function EmployeeHistory() {
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                           <p className="text-xs text-slate-500">Return</p>
                           <p className="mt-1 text-sm text-slate-700">
-                            {record.returnDate
-                              ? new Date(record.returnDate).toLocaleDateString()
+                            {record.returnedDate
+                              ? new Date(record.returnedDate).toLocaleDateString()
                               : "—"}
                           </p>
                         </div>

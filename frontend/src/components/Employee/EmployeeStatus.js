@@ -146,9 +146,9 @@ function EmployeeStatus() {
                       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <span>Return Date</span>
                         <span>
-                          {assignment.returnDate
+                          {assignment.returnedDate
                             ? new Date(
-                                assignment.returnDate,
+                                assignment.returnedDate,
                               ).toLocaleDateString()
                             : "Pending"}
                         </span>

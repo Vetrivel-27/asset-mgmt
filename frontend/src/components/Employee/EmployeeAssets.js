@@ -38,7 +38,7 @@ function EmployeeAssets() {
         asset.assetId?.toLowerCase().includes(filter.toLowerCase());
       const matchesType =
         !typeFilter ||
-        asset.category?.toLowerCase() === typeFilter.toLowerCase();
+        asset.type?.toLowerCase() === typeFilter.toLowerCase();
       const matchesStatus =
         !statusFilter ||
         asset.status?.toLowerCase() === statusFilter.toLowerCase();
@@ -59,7 +59,7 @@ function EmployeeAssets() {
   }, [pageCount, page]);
 
   const uniqueTypes = [
-    ...new Set(assets.map((a) => a.category).filter(Boolean)),
+    ...new Set(assets.map((a) => a.type).filter(Boolean)),
   ];
   const uniqueStatuses = [
     ...new Set(assets.map((a) => a.status).filter(Boolean)),
@@ -157,7 +157,7 @@ function EmployeeAssets() {
                       ID: {asset.assetId || "—"}
                     </div>
                     <div className="text-xs text-slate-500">
-                      Category: {asset.category || "—"}
+                      Type: {asset.type || "—"}
                     </div>
                     <div className="flex items-center gap-2 mt-3">
                       <span

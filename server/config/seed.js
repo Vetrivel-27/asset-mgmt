@@ -38,7 +38,7 @@ export const seedDatabase = async () => {
                 { name: "manage_roles", group: "Administration" },
                 { name: "manage_settings", group: "Administration" },
                 
-                { name: "view_audit", group: "Audit" }
+                // { name: "view_audit", group: "Audit" }
             ];
             const permissions = await Permission.insertMany(
                 permissionsToCreate
@@ -72,7 +72,7 @@ export const seedDatabase = async () => {
             const adminRole = await Role.findOne({ name: "Admin" });
             const hashedPassword = await bcrypt.hash("admin123",10);
             await User.create({
-                username: "System Admin",
+                userId: "System Admin",
                 email: "admin@test.com",
                 password: hashedPassword,
                 role: adminRole._id

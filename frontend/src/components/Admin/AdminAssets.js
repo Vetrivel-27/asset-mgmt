@@ -26,6 +26,25 @@ function AdminAssets() {
     loadAssets();
   }, []);
 
+  const handleDelete = async (assetId) => {
+    if (!window.confirm("Are you sure you want to delete this asset?")) return;
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`${API_URL}/api/assets/${assetId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to delete asset");
+      }
+      setAssets(assets.filter((item) => item._id !== assetId));
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert(error.message || "Failed to delete asset.");
+    }
+  };
+
   const filteredAssets = useMemo(() => {
     return assets.filter(
       (asset) =>
@@ -138,7 +157,10 @@ function AdminAssets() {
                       <button className="rounded-2xl bg-yellow-400 px-3 py-2 text-slate-900">
                         Edit
                       </button>
-                      <button className="ml-2 rounded-2xl border border-slate-300 px-3 py-2 text-slate-700">
+                      <button
+                        onClick={() => handleDelete(asset._id)}
+                        className="ml-2 rounded-2xl border border-slate-300 px-3 py-2 text-slate-700 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                      >
                         Delete
                       </button>
                     </td>
