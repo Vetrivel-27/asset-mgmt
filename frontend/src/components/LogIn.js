@@ -32,14 +32,14 @@ function LogIn({ onLogin }) {
         throw new Error("Login response did not include a role.");
       }
 
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("userRole", roleName);
-      localStorage.setItem("userEmail", data.user.email);
+      sessionStorage.setItem("authToken", data.token);
+      sessionStorage.setItem("userRole", roleName);
+      sessionStorage.setItem("userEmail", data.user.email);
 
       if (roleName === "admin") {
         navigate("/admin");
       } else {
-        localStorage.setItem("employeeEmail", data.user.email);
+        sessionStorage.setItem("employeeEmail", data.user.email);
         navigate("/employee");
       }
 

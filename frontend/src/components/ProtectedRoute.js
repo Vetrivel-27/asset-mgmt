@@ -9,8 +9,8 @@ import { Navigate, Outlet } from "react-router-dom";
  * Redirects to the correct dashboard if the user's role doesn't match the section.
  */
 function ProtectedRoute({ requiredRole }) {
-  const token = localStorage.getItem("authToken");
-  const role = localStorage.getItem("userRole"); // e.g. "admin", "manager", "employee"
+  const token = sessionStorage.getItem("authToken");
+  const role = sessionStorage.getItem("userRole"); // e.g. "admin", "manager", "employee"
 
   // Not logged in
   if (!token) {

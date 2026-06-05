@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 
 function EmployeeReport() {
-  const [assets, setAssets] = useState([]);
-  const [assignments, setAssignments] = useState([]);
+  const [myAssignments, setMyAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState("damage");
-  const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
   const [comment, setComment] = useState("");
   const [severity, setSeverity] = useState(60);
   const [sent, setSent] = useState(false);
@@ -16,18 +15,15 @@ function EmployeeReport() {
     let mounted = true;
     async function loadData() {
       try {
-        const [assetRes, assignmentRes] = await Promise.all([
-          fetch(`${API_URL}/api/assets`),
-          fetch(`${API_URL}/api/assignments`),
-        ]);
-        const [assetData, assignmentData] = await Promise.all([
-          assetRes.json(),
-          assignmentRes.json(),
-        ]);
-
+        const token = sessionStorage.getItem("authToken");
+        const res = await fetch(`${API_URL}/api/assignments/my-assignments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
         if (!mounted) return;
-        setAssets(Array.isArray(assetData) ? assetData : []);
-        setAssignments(Array.isArray(assignmentData) ? assignmentData : []);
+        // Only show active (not yet returned) assignments for reporting
+        const active = (Array.isArray(data) ? data : []).filter((a) => !a.returnedDate);
+        setMyAssignments(active);
       } catch (err) {
         console.error("Failed to load report assets", err);
       } finally {
@@ -35,43 +31,27 @@ function EmployeeReport() {
       }
     }
     loadData();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
-  const employeeEmail =
-    localStorage.getItem("employeeEmail") || "employee@gmail.com";
-
+  // Build list of assets from my active assignments
   const borrowedAssets = useMemo(() => {
-    const currentAssignments = assignments.filter((assignment) => {
-      return assignment.employee?.email === employeeEmail;
-    });
-
-    return currentAssignments
-      .map((assignment) => {
-        const asset = assets.find((item) => {
-          if (assignment.assetId != null) {
-            return String(item.assetId) === String(assignment.assetId);
-          }
-          return String(item._id) === String(assignment.asset);
-        });
-        return asset
-          ? {
-              ...asset,
-              assignmentId: assignment._id,
-            }
-          : null;
-      })
-      .filter(Boolean);
-  }, [assignments, assets, employeeEmail]);
+    return myAssignments.map((assignment) => {
+      const asset = typeof assignment.assetId === "object" ? assignment.assetId : {};
+      return {
+        ...asset,
+        assignmentId: assignment._id,
+        assetId: asset.assetId || assignment._id,
+      };
+    }).filter((a) => a.assignmentId);
+  }, [myAssignments]);
 
   const selectedAsset = useMemo(
     () =>
       borrowedAssets.find(
-        (asset) => String(asset.assetId) === String(selectedAssetId),
+        (asset) => String(asset.assignmentId) === String(selectedAssignmentId),
       ),
-    [borrowedAssets, selectedAssetId],
+    [borrowedAssets, selectedAssignmentId],
   );
 
   const reportOptions = [
@@ -84,7 +64,7 @@ function EmployeeReport() {
   const handleSubmit = (event) => {
     event.preventDefault();
     setError("");
-    if (!selectedAssetId) {
+    if (!selectedAssignmentId) {
       setError("Please choose the asset you want to report.");
       return;
     }
@@ -139,8 +119,8 @@ function EmployeeReport() {
               </div>
             ) : borrowedAssets.length === 0 ? (
               <div className="rounded-3xl bg-white p-8 shadow text-center text-slate-500">
-                No borrowed assets found for {employeeEmail}. Borrow an asset
-                first to report it.
+                No active borrowed assets found. Assets must be currently assigned
+                to you before you can report them.
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -176,13 +156,13 @@ function EmployeeReport() {
                     </label>
                     <select
                       id="asset"
-                      value={selectedAssetId}
-                      onChange={(e) => setSelectedAssetId(e.target.value)}
+                      value={selectedAssignmentId}
+                      onChange={(e) => setSelectedAssignmentId(e.target.value)}
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
                     >
                       <option value="">Choose an asset</option>
                       {borrowedAssets.map((asset) => (
-                        <option key={asset.assetId} value={asset.assetId}>
+                        <option key={asset.assignmentId} value={asset.assignmentId}>
                           {asset.name} — {asset.assetId}
                         </option>
                       ))}

@@ -3,7 +3,6 @@ import { API_URL } from "../../config";
 
 function EmployeeHistory() {
   const [assignments, setAssignments] = useState([]);
-  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -12,19 +11,17 @@ function EmployeeHistory() {
 
     async function loadHistory() {
       try {
-        const [assetRes, assignRes] = await Promise.all([
-          fetch(`${API_URL}/api/assets`),
-          fetch(`${API_URL}/api/assignments`),
-        ]);
-
-        const [assetData, assignData] = await Promise.all([
-          assetRes.json(),
-          assignRes.json(),
-        ]);
-
+        const token = sessionStorage.getItem("authToken");
+        const res = await fetch(`${API_URL}/api/assignments/my-assignments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
         if (!mounted) return;
-        setAssets(Array.isArray(assetData) ? assetData : []);
-        setAssignments(Array.isArray(assignData) ? assignData : []);
+        setAssignments(
+          (Array.isArray(data) ? data : []).sort(
+            (a, b) => new Date(b.assignedDate) - new Date(a.assignedDate)
+          )
+        );
       } catch (error) {
         console.error("Failed to load history", error);
       } finally {
@@ -39,60 +36,40 @@ function EmployeeHistory() {
     };
   }, []);
 
-  const employeeEmail =
-    localStorage.getItem("employeeEmail") || "employee@gmail.com";
-
+  // Flatten asset data from populated assetId field
   const borrowedAssets = useMemo(() => {
-    const employeeRecords = assignments.filter((assignment) => {
-      return assignment.employee?.email === employeeEmail;
+    return assignments.map((assignment) => {
+      const asset = typeof assignment.assetId === "object" ? assignment.assetId : {};
+      return {
+        ...assignment,
+        asset,
+      };
     });
-
-    return employeeRecords
-      .map((assignment) => {
-        const asset = assets.find((item) => {
-          if (assignment.assetId != null) {
-            return String(item.assetId) === String(assignment.assetId);
-          }
-          return String(item._id) === String(assignment.asset);
-        });
-        return {
-          ...assignment,
-          asset: asset || assignment.asset || {},
-        };
-      })
-      .sort((a, b) => new Date(b.assignedDate) - new Date(a.assignedDate));
-  }, [assignments, assets, employeeEmail]);
+  }, [assignments]);
 
   const filteredHistory = useMemo(() => {
     const term = search.toLowerCase();
     return borrowedAssets.filter((record) => {
       const name = record.asset?.name?.toLowerCase() || "";
-      const id = String(record.asset?.assetId || record.assetId || "");
+      const id = String(record.asset?.assetId || "");
       return name.includes(term) || id.includes(term);
     });
   }, [borrowedAssets, search]);
 
   const stats = useMemo(() => {
     const total = filteredHistory.length;
-    const returned = filteredHistory.filter(
-      (record) => record.returnDate,
-    ).length;
+    const returned = filteredHistory.filter((r) => !!r.returnedDate).length;
     const pending = total - returned;
     return { total, returned, pending };
   }, [filteredHistory]);
 
   const statusLabel = (record) => {
-    const status = (record.asset?.status || "pending").toLowerCase();
-    if (status === "assigned" || status === "approved") {
-      return { text: "Approved", classes: "bg-green-100 text-green-700" };
-    }
-    if (status === "available" || status === "pending") {
-      return { text: "Pending", classes: "bg-yellow-100 text-yellow-700" };
-    }
-    return {
-      text: status.charAt(0).toUpperCase() + status.slice(1),
-      classes: "bg-slate-100 text-slate-700",
-    };
+    if (record.returnedDate)
+      return { text: "Returned", classes: "bg-green-100 text-green-700" };
+    const dueDate = record.tentativeReturnDate;
+    if (dueDate && new Date(dueDate) < new Date())
+      return { text: "Overdue", classes: "bg-red-100 text-red-700" };
+    return { text: "Active", classes: "bg-blue-100 text-blue-700" };
   };
 
   return (
@@ -185,9 +162,6 @@ function EmployeeHistory() {
                       <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
                         Status
                       </th>
-                      <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">
-                        Notes
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -203,7 +177,7 @@ function EmployeeHistory() {
                             {record.asset?.name || "Unknown asset"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.asset?.assetId || record.assetId || "—"}
+                            {record.asset?.assetId || "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
                             {record.assignedDate
@@ -213,8 +187,8 @@ function EmployeeHistory() {
                               : "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.returnDate
-                              ? new Date(record.returnDate).toLocaleDateString()
+                            {record.returnedDate
+                              ? new Date(record.returnedDate).toLocaleDateString()
                               : "—"}
                           </td>
                           <td className="px-4 py-4">
@@ -223,9 +197,6 @@ function EmployeeHistory() {
                             >
                               {status.text}
                             </span>
-                          </td>
-                          <td className="px-4 py-4 text-right text-sm text-slate-500">
-                            {record.comments ? record.comments : "—"}
                           </td>
                         </tr>
                       );
@@ -271,15 +242,9 @@ function EmployeeHistory() {
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                           <p className="text-xs text-slate-500">Return</p>
                           <p className="mt-1 text-sm text-slate-700">
-                            {record.returnDate
-                              ? new Date(record.returnDate).toLocaleDateString()
+                            {record.returnedDate
+                              ? new Date(record.returnedDate).toLocaleDateString()
                               : "—"}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                          <p className="text-xs text-slate-500">Notes</p>
-                          <p className="mt-1 text-sm text-slate-700">
-                            {record.comments || "—"}
                           </p>
                         </div>
                       </div>

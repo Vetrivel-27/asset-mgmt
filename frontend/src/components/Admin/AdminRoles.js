@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("authToken");
+  const token = sessionStorage.getItem("authToken");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

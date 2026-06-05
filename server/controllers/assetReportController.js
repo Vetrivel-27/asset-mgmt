@@ -58,7 +58,7 @@ export const getAllReports = async (req, res) =>{
         .populate({
             path: 'employeeId',
             select: 'name department',
-            populate: { path: 'userId', select: 'username email' }
+            populate: { path: 'userId', select: 'userId email' }
         })
         .populate('assetId','assetId name')
         .sort({createdAt:-1});
