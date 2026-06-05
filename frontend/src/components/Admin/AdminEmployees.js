@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("authToken");
+  const token = sessionStorage.getItem("authToken");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 const normalizeEmployee = (employee) => ({
   ...employee,
   email: employee.email || employee.userId?.email || "",
-  employeeId: employee.employeeId || employee.userId?.username || "",
+  employeeId: employee.employeeId || employee.userId?.userId || "",
   roleId: employee.roleId || employee.userId?.role?._id || "",
   roleName: employee.roleName || employee.userId?.role?.name || "",
 });
@@ -183,8 +183,23 @@ function AdminEmployees() {
     }
   };
 
-  const handleDelete = (employeeId) => {
-    setEmployees(employees.filter((item) => item._id !== employeeId));
+  const handleDelete = async (employeeId) => {
+    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/employees/${employeeId}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeaders() },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to delete employee");
+      }
+      setEmployees(employees.filter((item) => item._id !== employeeId));
+    }
+    catch (error) {
+      console.error("Delete failed:", error);
+      alert(error.message || "Failed to delete employee.");
+    }
   };
 
   return (

@@ -6,28 +6,27 @@ import sendEmail from '../utils/sendEmail.js';
 
 export const register = async(req, res) => {
     try{
-        const{username, email, password, roleId} = req.body;
+        const{userId, username, email, password, roleId} = req.body;
         const existingUser = await User.findOne({email});
         if(existingUser){
             return res.status(400).json({message: "Email already exists"});
         }
         const saltRounds = 10;
         const hashedPwd = await bcrypt.hash(password, saltRounds);
-
         const newUser = new User({
-            username, email, password: hashedPwd, role: roleId
+            userId: userId || username, email, password: hashedPwd, role: roleId, createdBy: req.user.id
         });
         await newUser.save();
         res.status(201).json({
             message: 'User registered successfully',
             user:{
-                id:newUser._id, username: newUser.username, roleId: newUser.role
+                id:newUser._id, userId: newUser.userId, roleId: newUser.role
             }
         });
     }
     catch(e){
         console.log(e.message);
-        res.status(500).json({error: "Server error"});
+        res.status(500).json({message: "Server error"});
     }
 };
 
@@ -42,16 +41,19 @@ export const login = async(req, res) => {
             }
         });
         if(!user){
-            return res.status( 401).json({error: "Invalid credentials"});
+            return res.status( 401).json({message: "Invalid credentials"});
         }
         //check if password is correct
         const matchPwd = await bcrypt.compare(password, user.password);
         if(!matchPwd){
             return res.status(401).json({
-                error: "Invalid credentials"
+                message: "Invalid credentials"
             });
         }
 
+        if (!user.role) {
+            return res.status(401).json({ message: "User account role not configured." });
+        }
         const permissionNames = user.role.permissions.map(perm=>perm.name);//permissions array
         //generate jwt
         const token = jwt.sign({
@@ -64,7 +66,7 @@ export const login = async(req, res) => {
             token,
             user:{
                 id: user._id,
-                username: user.username,
+                userId: user.userId,
                 email:user.email,
                 roleName: user.role.name,
                 permissions:permissionNames
@@ -73,22 +75,25 @@ export const login = async(req, res) => {
     }
     catch(e){
         console.error(e.message);
-        res.status(500).json({error:"Server error"});
+        res.status(500).json({message:"Server error"});
     }
 };
 
 export const forgotPassword = async (req, res) =>{
     try{
-        const user = await User.findOne({
-            email: req.body.email
-        });
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const user = await User.findOne({ email });
         if(!user){
             return res.status(404).json({
                 message:"There is no user with that email."
             });
         }
 
-        const resetToken= crypto.randomBytes(20).toString('hex');
+        const resetToken = crypto.randomBytes(20).toString('hex');
         const otp = crypto.randomInt(100000, 1000000).toString();
         user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
         user.resetPasswordExpires = Date.now()+10*60*1000;

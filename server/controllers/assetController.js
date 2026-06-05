@@ -8,7 +8,7 @@ export const createAsset = async (req, res) => {
             return res.status(400).json({ message: 'Asset with this ID already exists' });
         }
 
-        const asset = await Asset.create({name,type,assetId,purchaseDate,status});
+        const asset = await Asset.create({name, type, assetId, purchaseDate, status, createdBy: req.user.id});
         res.status(201).json(asset);
     }
     catch (error) {
@@ -101,11 +101,24 @@ export const deleteAsset = async (req, res) => {
         const asset = await Asset.findById(req.params.id);
 
         if (asset) {
-            await Asset.deleteOne({ _id: asset._id });
+            asset.isDeleted = true;
+            asset.deletedAt = new Date();
+            asset.deletedBy = req.user.id;
+            await asset.save();
             res.json({ message: 'Asset removed' });
         } else {
             res.status(404).json({ message: 'Asset not found' });
         }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const getAssetCategories = async (req, res) => {
+    try {
+        const categories = await Asset.distinct('type');
+        res.json(categories);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

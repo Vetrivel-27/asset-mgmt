@@ -10,7 +10,7 @@ function AdminReports() {
     let mounted = true;
     async function load() {
       try {
-        const token = localStorage.getItem("authToken");
+        const token = sessionStorage.getItem("authToken");
         const headers = { Authorization: `Bearer ${token}` };
         const [assetsRes, assignmentsRes] = await Promise.all([
           fetch(`${API_URL}/api/assets`, { headers }),
@@ -57,8 +57,8 @@ function AdminReports() {
     return assignments
       .slice()
       .sort((a, b) => {
-        const da = a.assignedAt ? new Date(a.assignedAt) : new Date(0);
-        const db = b.assignedAt ? new Date(b.assignedAt) : new Date(0);
+        const da = a.assignedDate ? new Date(a.assignedDate) : new Date(0);
+        const db = b.assignedDate ? new Date(b.assignedDate) : new Date(0);
         return db - da;
       })
       .slice(0, 6);
@@ -96,7 +96,7 @@ function AdminReports() {
             Recently Assigned
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Latest asset assignments (top 6)
+            Latest asset assignments
           </p>
 
           {recentlyAssigned.length === 0 ? (
@@ -105,27 +105,36 @@ function AdminReports() {
             </div>
           ) : (
             <ul className="mt-4 space-y-3">
-              {recentlyAssigned.map((r) => (
-                <li
-                  key={r._id || r.id || `${r.assetId}-${r.assignedTo}`}
-                  className="flex items-start justify-between"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-slate-900">
-                      {r.assetName || r.assetId || "Unknown asset"}
+              {recentlyAssigned.map((r) => {
+                const asset = typeof r.assetId === "object" ? r.assetId : null;
+                const employee = typeof r.employeeId === "object" ? r.employeeId : null;
+                
+                const assetName = asset ? asset.name : (r.assetName || "Unknown asset");
+                const employeeName = employee ? employee.name : (r.assignedTo || "—");
+                const isReturned = !!r.returnedDate;
+
+                return (
+                  <li
+                    key={r._id || r.id}
+                    className="flex items-start justify-between"
+                  >
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {assetName}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {employeeName} •{" "}
+                        {r.assignedDate
+                          ? new Date(r.assignedDate).toLocaleDateString()
+                          : "—"}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-500">
-                      {r.assignedTo || "—"} •{" "}
-                      {r.assignedAt
-                        ? new Date(r.assignedAt).toLocaleDateString()
-                        : "—"}
+                    <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1">
+                      {isReturned ? "Returned" : "Active"}
                     </div>
-                  </div>
-                  <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1">
-                    {r.returned ? "Returned" : "Active"}
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -159,7 +168,7 @@ function AdminReports() {
                       {a.name || a.assetId}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {a.category || "—"}
+                      {a.type || "—"}
                     </div>
                   </div>
                   <div className="text-xs text-red-600">Damaged</div>
@@ -206,7 +215,7 @@ function AdminReports() {
                       {a.name || a.assetId}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {a.category || "—"}
+                      {a.type || "—"}
                     </div>
                   </div>
                   <div className="text-xs text-green-600">Available</div>

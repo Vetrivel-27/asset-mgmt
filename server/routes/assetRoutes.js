@@ -1,9 +1,10 @@
 import express from 'express';
-import {createAsset,getAssets,getAssetById,updateAsset,deleteAsset} from '../controllers/assetController.js';
+import {createAsset,getAssets,getAssetById,updateAsset,deleteAsset,getAssetCategories} from '../controllers/assetController.js';
 import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/categories', verifyToken, requirePermission('view_asset'), getAssetCategories);
 router.get('/', verifyToken, requirePermission('view_asset'), getAssets);
 router.get('/:id', verifyToken, requirePermission('view_asset'), getAssetById);
 

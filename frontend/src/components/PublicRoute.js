@@ -7,8 +7,8 @@ import { Navigate, Outlet } from "react-router-dom";
  * This prevents back-navigation to /login after a successful login.
  */
 function PublicRoute() {
-  const token = localStorage.getItem("authToken");
-  const role = localStorage.getItem("userRole");
+  const token = sessionStorage.getItem("authToken");
+  const role = sessionStorage.getItem("userRole");
 
   if (token) {
     const isAdmin = role === "admin";
