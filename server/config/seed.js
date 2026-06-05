@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import Permission from "../models/Permission.js";
 import Role from "../models/Role.js";
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 
 export const seedDatabase = async () => {
     try {
@@ -67,17 +68,31 @@ export const seedDatabase = async () => {
         }
 
         // Seed Default Admin User
-        const existingAdmin = await User.collection.findOne({ email: "admin@test.com" });
+        const existingAdmin = await User.findOne({ email: "admin@test.com" });
+        let adminUser = existingAdmin;
         if (!existingAdmin) {
             const adminRole = await Role.findOne({ name: "Admin" });
             const hashedPassword = await bcrypt.hash("admin123",10);
-            await User.create({
+            adminUser = await User.create({
                 userId: "System Admin",
                 email: "admin@test.com",
                 password: hashedPassword,
                 role: adminRole._id
             });
             console.log("Default admin user created");
+        }
+
+        // Check if there is an Employee profile for the admin user
+        if (adminUser) {
+            const existingAdminEmployee = await Employee.findOne({ userId: adminUser._id });
+            if (!existingAdminEmployee) {
+                await Employee.create({
+                    name: "System Admin",
+                    department: "Administration",
+                    userId: adminUser._id
+                });
+                console.log("Default admin employee profile created");
+            }
         }
     }
     catch (err) {

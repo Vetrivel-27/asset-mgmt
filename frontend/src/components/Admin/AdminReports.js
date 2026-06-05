@@ -4,6 +4,7 @@ import { API_URL } from "../../config";
 function AdminReports() {
   const [assets, setAssets] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [filedReports, setFiledReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,23 +13,27 @@ function AdminReports() {
       try {
         const token = sessionStorage.getItem("authToken");
         const headers = { Authorization: `Bearer ${token}` };
-        const [assetsRes, assignmentsRes] = await Promise.all([
+        const [assetsRes, assignmentsRes, reportsRes] = await Promise.all([
           fetch(`${API_URL}/api/assets`, { headers }),
           fetch(`${API_URL}/api/assignments`, { headers }),
+          fetch(`${API_URL}/api/reports`, { headers }),
         ]);
-        const [assetsData, assignmentsData] = await Promise.all([
+        const [assetsData, assignmentsData, reportsData] = await Promise.all([
           assetsRes.json(),
           assignmentsRes.json(),
+          reportsRes.json()
         ]);
         if (mounted) {
           setAssets(Array.isArray(assetsData) ? assetsData : []);
           setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
+          setFiledReports(Array.isArray(reportsData) ? reportsData : []);
         }
       } catch (err) {
         console.error("Failed to load reports data", err);
         if (mounted) {
           setAssets([]);
           setAssignments([]);
+          setFiledReports([]);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -43,7 +48,7 @@ function AdminReports() {
   const damagedAssets = useMemo(
     () =>
       assets.filter(
-        (a) => (a.status || a.condition || "").toLowerCase() === "damaged",
+        (a) => (a.status || a.condition || "").toLowerCase() === "damaged" || (a.status || "").toLowerCase() === "maintenance",
       ),
     [assets],
   );
@@ -142,45 +147,47 @@ function AdminReports() {
         <div
           className="p-6 bg-white rounded-xl shadow-md cursor-pointer
                     transition-all duration-300 ease-in-out
-                    hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+                    hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm flex flex-col"
         >
           <h3 className="text-lg font-semibold text-slate-900">
-            Damaged Assets
+            Employee Reports
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Items flagged as damaged
+            Damage & incident reports filed by borrowers
           </p>
 
-          <div className="mt-6">
+          <div className="mt-6 flex-1 overflow-hidden">
             <div className="text-3xl font-semibold text-slate-900 text-red-500">
-              {damagedAssets.length}
+              {filedReports.length}
             </div>
-            <p className="text-sm text-slate-500 mt-1">Total damaged assets</p>
+            <p className="text-sm text-slate-500 mt-1">Total active reports</p>
 
-            <div className="mt-4 space-y-2">
-              {damagedAssets.slice(0, 4).map((a) => (
+            <div className="mt-4 space-y-3">
+              {filedReports.slice(0, 4).map((r) => (
                 <div
-                  key={a._id || a.assetId}
-                  className="flex items-center justify-between"
+                  key={r._id}
+                  className="flex items-start justify-between border-b border-slate-100 pb-2 last:border-0"
                 >
-                  <div>
-                    <div className="text-sm font-medium text-slate-900">
-                      {a.name || a.assetId}
+                  <div className="min-w-0 pr-2">
+                    <div className="text-sm font-medium text-slate-900 truncate">
+                      {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      {a.type || "—"}
+                    <div className="text-xs text-slate-500 truncate" title={r.message}>
+                      {r.employeeId?.name || "Unknown user"} • {r.message}
                     </div>
                   </div>
-                  <div className="text-xs text-red-600">Damaged</div>
+                  <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {r.type}
+                  </div>
                 </div>
               ))}
-              {damagedAssets.length > 4 && (
-                <div className="text-xs text-slate-500">
-                  +{damagedAssets.length - 4} more
+              {filedReports.length > 4 && (
+                <div className="text-xs text-slate-500 text-center font-medium mt-2">
+                  +{filedReports.length - 4} more reports
                 </div>
               )}
-              {damagedAssets.length === 0 && (
-                <div className="text-sm text-slate-500">No damaged assets.</div>
+              {filedReports.length === 0 && (
+                <div className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4 text-center">No reports filed.</div>
               )}
             </div>
           </div>

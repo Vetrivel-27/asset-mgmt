@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
+import CanAccess from "../CanAccess";
 
 function AdminAssignments() {
   const [assignments, setAssignments] = useState([]);
@@ -132,12 +133,14 @@ function AdminAssignments() {
             View current asset assignments and return status.
           </p>
         </div>
-        <button
-          onClick={handleToggleForm}
-          className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-350 transition"
-        >
-          {showForm ? "Cancel" : "New Assignment"}
-        </button>
+        <CanAccess permission="assign_asset">
+          <button
+            onClick={handleToggleForm}
+            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-350 transition"
+          >
+            {showForm ? "Cancel" : "New Assignment"}
+          </button>
+        </CanAccess>
       </div>
 
       {submitSuccess && (

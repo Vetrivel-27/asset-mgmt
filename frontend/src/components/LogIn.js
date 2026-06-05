@@ -35,13 +35,14 @@ function LogIn({ onLogin }) {
       sessionStorage.setItem("authToken", data.token);
       sessionStorage.setItem("userRole", roleName);
       sessionStorage.setItem("userEmail", data.user.email);
+      sessionStorage.setItem("userPermissions", JSON.stringify(data.user.permissions || []));
+      sessionStorage.setItem("userName", data.user.userId || data.user.email || "User");
 
-      if (roleName === "admin") {
-        navigate("/admin");
-      } else {
+      if (roleName !== "admin") {
         sessionStorage.setItem("employeeEmail", data.user.email);
-        navigate("/employee");
       }
+      
+      navigate("/dashboard");
 
       if (onLogin) onLogin({ ...data.user, role: roleName, token: data.token });
     } catch (err) {

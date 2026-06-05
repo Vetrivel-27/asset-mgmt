@@ -13,6 +13,7 @@ function AdminRoles() {
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editingRoleId, setEditingRoleId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -64,6 +65,44 @@ function AdminRoles() {
     );
   };
 
+  const handleEditInit = (role) => {
+    setEditingRoleId(role._id);
+    setRoleName(role.name);
+    setSelectedPermissions((role.permissions || []).map(p => p._id || p));
+    setError("");
+    setMessage("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRoleId(null);
+    setRoleName("");
+    setSelectedPermissions([]);
+    setError("");
+    setMessage("");
+  };
+
+  const handleDelete = async (role) => {
+    if (!window.confirm(`Are you sure you want to delete the role "${role.name}"?`)) return;
+    
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch(`${API_URL}/api/roles/${role._id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.message || "Failed to delete role.");
+      
+      setRoles(current => current.filter(r => r._id !== role._id));
+      setMessage(`Role deleted successfully.`);
+      if (editingRoleId === role._id) handleCancelEdit();
+    } catch (err) {
+      setError(err.message || "Failed to delete role.");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -76,8 +115,13 @@ function AdminRoles() {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/roles`, {
-        method: "POST",
+      const isEditing = !!editingRoleId;
+      const url = isEditing 
+        ? `${API_URL}/api/roles/${editingRoleId}` 
+        : `${API_URL}/api/roles`;
+        
+      const res = await fetch(url, {
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           name: roleName.trim(),
@@ -87,15 +131,21 @@ function AdminRoles() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Failed to create role.");
+        throw new Error(data.message || data.error || `Failed to ${isEditing ? 'update' : 'create'} role.`);
       }
 
-      setRoles((current) => [...current, data]);
-      setRoleName("");
-      setSelectedPermissions([]);
-      setMessage(`Role ${data.name} created successfully.`);
+      if (isEditing) {
+        setRoles(current => current.map(r => r._id === data._id ? data : r));
+        setMessage(`Role ${data.name} updated successfully.`);
+        handleCancelEdit();
+      } else {
+        setRoles((current) => [...current, data]);
+        setRoleName("");
+        setSelectedPermissions([]);
+        setMessage(`Role ${data.name} created successfully.`);
+      }
     } catch (err) {
-      setError(err.message || "Failed to create role.");
+      setError(err.message || "Failed to save role.");
     } finally {
       setSubmitting(false);
     }
@@ -132,33 +182,56 @@ function AdminRoles() {
             ) : roles.length === 0 ? (
               <p className="text-sm text-slate-500">No roles found.</p>
             ) : (
-              roles.map((role) => (
-                <div
-                  key={role._id}
-                  className="rounded-2xl border border-slate-200 p-4"
-                >
-                  <div className="text-sm font-semibold capitalize text-slate-900">
-                    {role.name}
+              roles.map((role) => {
+                const isCore = role.name === "admin" || role.name === "employee";
+                return (
+                  <div
+                    key={role._id}
+                    className="rounded-2xl border border-slate-200 p-4 relative group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold capitalize text-slate-900">
+                        {role.name}
+                        {isCore && <span className="ml-2 text-[10px] uppercase tracking-widest text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">Core</span>}
+                      </div>
+                      
+                      {!isCore && (
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEditInit(role)}
+                            className="text-xs font-semibold text-yellow-600 hover:text-yellow-700 bg-yellow-50 px-2 py-1 rounded-md"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(role)}
+                            className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(role.permissions || []).map((permission) => (
+                        <span
+                          key={permission._id || permission}
+                          className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
+                        >
+                          {permission.name || permission}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {(role.permissions || []).map((permission) => (
-                      <span
-                        key={permission._id || permission}
-                        className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
-                      >
-                        {permission.name || permission}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>
 
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-900">
-            Create Role
+            {editingRoleId ? "Edit Role" : "Create Role"}
           </h3>
           <form onSubmit={handleSubmit} className="mt-5 space-y-5">
             <label className="block">
@@ -204,13 +277,25 @@ function AdminRoles() {
               ))}
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
-            >
-              {submitting ? "Creating..." : "Create role"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+              >
+                {submitting ? "Saving..." : editingRoleId ? "Update Role" : "Create Role"}
+              </button>
+              {editingRoleId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={submitting}
+                  className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </section>
       </div>

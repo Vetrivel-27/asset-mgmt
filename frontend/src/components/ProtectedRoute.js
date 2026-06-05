@@ -8,25 +8,12 @@ import { Navigate, Outlet } from "react-router-dom";
  * Redirects to /login if no token.
  * Redirects to the correct dashboard if the user's role doesn't match the section.
  */
-function ProtectedRoute({ requiredRole }) {
+function ProtectedRoute() {
   const token = sessionStorage.getItem("authToken");
-  const role = sessionStorage.getItem("userRole"); // e.g. "admin", "manager", "employee"
 
   // Not logged in
   if (!token) {
     return <Navigate to="/login" replace />;
-  }
-
-  const isAdmin = role === "admin";
-
-  // Admin trying to access /employee section → go to /admin
-  if (requiredRole === "employee" && isAdmin) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  // Non-admin trying to access /admin section → go to /employee
-  if (requiredRole === "admin" && !isAdmin) {
-    return <Navigate to="/employee" replace />;
   }
 
   return <Outlet />;

@@ -82,8 +82,44 @@ export const getMyAssignments = async (req, res) => {
         }
         const assignments = await Assignment.find({ employeeId: employee._id })
             .populate('assetId', 'name type assetId status')
+            .populate('createdBy', 'userId email')
             .sort({ createdAt: -1 });
         res.json(assignments);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const borrowAsset = async (req, res) => {
+    try {
+        const { assetId, tentativeReturnDate } = req.body;
+        const employee = await Employee.findOne({ userId: req.user.id });
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee profile not found' });
+        }
+
+        const asset = await Asset.findById(assetId);
+        if (!asset) {
+            return res.status(404).json({ message: 'Asset not found' });
+        }
+
+        if (asset.status !== 'available') {
+            return res.status(400).json({ message: 'Asset is not available for borrowing' });
+        }
+
+        const assignment = await Assignment.create({
+            assetId,
+            employeeId: employee._id,
+            assignedDate: new Date(),
+            tentativeReturnDate: tentativeReturnDate ? new Date(tentativeReturnDate) : null,
+            createdBy: req.user.id
+        });
+
+        asset.status = 'assigned';
+        await asset.save();
+
+        res.status(201).json(assignment);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

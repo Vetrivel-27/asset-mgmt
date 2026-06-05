@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
+import CanAccess from "../CanAccess";
 
 // ── tiny icon components ────────────────────────────────────────────────────
 const Icon = ({ d }) => (
@@ -54,8 +55,8 @@ function AddAssetForm({ onSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const finalCat = category === "CUSTOM" ? customCat.trim() : category;
-    if (!name.trim() || !assetId.trim() || !finalCat || !purchaseDate) {
-      setError("All fields are required."); return;
+    if (!name.trim() || !finalCat || !purchaseDate) {
+      setError("Name, Category, and Purchase Date are required."); return;
     }
     setSubmitting(true); setError("");
     try {
@@ -66,6 +67,14 @@ function AddAssetForm({ onSuccess, onCancel }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to add asset.");
+      
+      // Reset form states
+      setName("");
+      setAssetId("");
+      setCategory("");
+      setCustomCat("");
+      setPurchaseDate("");
+      
       onSuccess(`Asset "${data.name}" added successfully!`);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
@@ -81,8 +90,8 @@ function AddAssetForm({ onSuccess, onCancel }) {
           <input value={name} onChange={e => setName(e.target.value)} placeholder="MacBook Pro 16" disabled={submitting} className={`mt-1 ${inputCls}`} />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-600">Asset ID</span>
-          <input value={assetId} onChange={e => setAssetId(e.target.value)} placeholder="LAP-001" disabled={submitting} className={`mt-1 ${inputCls}`} />
+          <span className="text-xs font-medium text-slate-600">Asset ID <span className="text-slate-400 font-normal">(Optional: Auto-generated)</span></span>
+          <input value={assetId} onChange={e => setAssetId(e.target.value)} placeholder="e.g. LAP-001 (or leave blank)" disabled={submitting} className={`mt-1 ${inputCls}`} />
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-600">Category</span>
@@ -141,6 +150,14 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to register employee.");
+      
+      // Reset form states
+      setName("");
+      setEmployeeId("");
+      setEmail("");
+      setDepartment("");
+      setRoleId("");
+
       onSuccess(`Employee "${data.name || name}" registered! A welcome email has been sent.`);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
@@ -402,19 +419,25 @@ function AdminDashboard() {
             </div>
 
             {/* Navigate shortcuts */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                onClick={() => navigate("/admin/assignments")}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-              >
-                📋 New Assignment
-              </button>
-              <button
-                onClick={() => navigate("/admin/reports")}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-              >
-                📊 View Reports
-              </button>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <CanAccess permission="assign_asset">
+                <button
+                  onClick={() => navigate("/dashboard/assignments")}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <Icon d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+                  New Assignment
+                </button>
+              </CanAccess>
+              <CanAccess permission="view_report">
+                <button
+                  onClick={() => navigate("/dashboard/reports")}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <Icon d="M18 20V10M12 20V4M6 20v-6" />
+                  View Reports
+                </button>
+              </CanAccess>
             </div>
           </div>
         </div>

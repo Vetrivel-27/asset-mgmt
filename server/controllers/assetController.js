@@ -2,10 +2,26 @@ import Asset from '../models/Asset.js';
 
 export const createAsset = async (req, res) => {
     try {
-        const { name, type, assetId, purchaseDate, status } = req.body;
-        const assetExists = await Asset.findOne({ assetId });
-        if (assetExists) {
-            return res.status(400).json({ message: 'Asset with this ID already exists' });
+        const { name, type, purchaseDate, status } = req.body;
+        let { assetId } = req.body;
+
+        if (!assetId || assetId.trim() === "") {
+            const prefix = (type || "GEN").slice(0, 3).toUpperCase();
+            const count = await Asset.countDocuments({ type });
+            let seq = count + 1;
+            assetId = `${prefix}-${String(seq).padStart(3, '0')}`;
+            // Double check uniqueness
+            let assetExists = await Asset.findOne({ assetId, isDeleted: false });
+            while (assetExists) {
+                seq++;
+                assetId = `${prefix}-${String(seq).padStart(3, '0')}`;
+                assetExists = await Asset.findOne({ assetId, isDeleted: false });
+            }
+        } else {
+            const assetExists = await Asset.findOne({ assetId, isDeleted: false });
+            if (assetExists) {
+                return res.status(400).json({ message: 'Asset with this ID already exists' });
+            }
         }
 
         const asset = await Asset.create({name, type, assetId, purchaseDate, status, createdBy: req.user.id});

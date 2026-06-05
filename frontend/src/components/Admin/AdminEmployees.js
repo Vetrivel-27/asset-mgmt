@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
+import CanAccess from "../CanAccess";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("authToken");
@@ -211,15 +212,17 @@ function AdminEmployees() {
             Manage employee profiles and assignments.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setShowForm((current) => !current);
-            resetForm();
-          }}
-          className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
-        >
-          {showForm ? "Cancel" : "New Employee"}
-        </button>
+        <CanAccess permission="manage_users">
+          <button
+            onClick={() => {
+              setShowForm((current) => !current);
+              resetForm();
+            }}
+            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
+          >
+            {showForm ? "Cancel" : "New Employee"}
+          </button>
+        </CanAccess>
       </div>
 
       {submitSuccess && (
@@ -468,13 +471,17 @@ function AdminEmployees() {
                         {employee.roleName || "—"}
                       </td>
                       <td className="px-4 py-4 text-right text-sm">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(employee._id)}
-                          className="rounded-2xl bg-red-100 px-3 py-2 text-red-700 transition hover:bg-red-200"
-                        >
-                          Delete
-                        </button>
+                        <CanAccess permission="manage_users">
+                          {employee.email?.toLowerCase() !== "admin@test.com" && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(employee._id)}
+                              className="rounded-2xl bg-red-100 px-3 py-2 text-red-700 transition hover:bg-red-200"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </CanAccess>
                       </td>
                     </tr>
                   ))}

@@ -9,6 +9,7 @@ function EmployeeReport() {
   const [comment, setComment] = useState("");
   const [severity, setSeverity] = useState(60);
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -61,7 +62,7 @@ function EmployeeReport() {
     { value: "other", label: "Other issue" },
   ];
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     if (!selectedAssignmentId) {
@@ -72,7 +73,42 @@ function EmployeeReport() {
       setError("Please describe the issue in the comment box.");
       return;
     }
-    setSent(true);
+
+    const assetToReport = borrowedAssets.find(
+      (a) => String(a.assignmentId) === String(selectedAssignmentId)
+    );
+
+    if (!assetToReport || !assetToReport._id) {
+      setError("Invalid asset selection.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const res = await fetch(`${API_URL}/api/reports`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          assetId: assetToReport._id,
+          type: reportType,
+          message: comment,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Failed to submit report.");
+      }
+      setSent(true);
+    } catch (err) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

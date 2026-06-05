@@ -8,12 +8,8 @@ import { Navigate, Outlet } from "react-router-dom";
  */
 function PublicRoute() {
   const token = sessionStorage.getItem("authToken");
-  const role = sessionStorage.getItem("userRole");
-
   if (token) {
-    const isAdmin = role === "admin";
-    const home = isAdmin ? "/admin" : "/employee";
-    return <Navigate to={home} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

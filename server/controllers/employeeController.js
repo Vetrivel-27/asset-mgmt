@@ -194,6 +194,9 @@ export const deleteEmployee = async (req, res) => {
         // Soft delete the User account so they can't log in anymore
         const user = await User.findById(employee.userId);
         if (user) {
+            if (user.email === 'admin@test.com') {
+                return res.status(400).json({ message: 'Seeded admin account cannot be deleted.' });
+            }
             user.isDeleted = true;
             user.deletedAt = new Date();
             user.deletedBy = req.user.id;
