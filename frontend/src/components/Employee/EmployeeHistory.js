@@ -70,9 +70,6 @@ function EmployeeHistory() {
   const statusLabel = (record) => {
     if (record.returnedDate)
       return { text: "Returned", classes: "bg-green-100 text-green-700 border-green-200" };
-    const dueDate = record.tentativeReturnDate;
-    if (dueDate && new Date(dueDate) < new Date())
-      return { text: "Overdue", classes: "bg-red-100 text-red-700 border-red-200" };
     return { text: "Active", classes: "bg-blue-100 text-blue-700 border-blue-200" };
   };
 

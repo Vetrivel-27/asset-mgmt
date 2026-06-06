@@ -278,16 +278,12 @@ function AdminAssignments() {
                   
                   const isReturned = !!assignment.returnedDate;
                   const dueDate = assignment.tentativeReturnDate;
-                  const isOverdue = !isReturned && dueDate && new Date(dueDate) < new Date();
 
-                  let statusText = "Available";
+                  let statusText = "Active";
                   let badgeClass = "bg-blue-100 text-blue-700";
                   if (isReturned) {
                     statusText = "Returned";
                     badgeClass = "bg-green-100 text-green-700";
-                  } else if (isOverdue) {
-                    statusText = "Overdue";
-                    badgeClass = "bg-red-100 text-red-700";
                   }
 
                   return (

@@ -209,7 +209,7 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ assets: 0, employees: 0, activeAssignments: 0, pendingReturns: 0 });
+  const [stats, setStats] = useState({ assets: 0, employees: 0, activeAssignments: 0 });
   const [activity, setActivity] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -248,7 +248,6 @@ function AdminDashboard() {
           assets: assetsArr.length,
           employees: empArr.length,
           activeAssignments: assignArr.filter(a => !a.returnedDate).length,
-          pendingReturns: assignArr.filter(a => !a.returnedDate && a.tentativeReturnDate && new Date(a.tentativeReturnDate) < new Date()).length,
         });
 
         // Build activity feed: sort all assignments by most recent date
@@ -289,7 +288,6 @@ function AdminDashboard() {
     { label: "Total Assets", value: stats.assets, icon: "M20 7l-8-4-8 4m16 0v10l-8 4m0-14L4 17m8 4V11", color: "text-yellow-500" },
     { label: "Employees", value: stats.employees, icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm10 3a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 5v-2a5 5 0 0 0-4-4.9", color: "text-blue-500" },
     { label: "Active Assignments", value: stats.activeAssignments, icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4", color: "text-green-500" },
-    { label: "Overdue Returns", value: stats.pendingReturns, icon: "M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0", color: "text-red-500" },
   ];
 
   if (loading)
@@ -311,7 +309,7 @@ function AdminDashboard() {
       )}
 
       {/* ── Stat cards ─────────────────────────────────────────────────── */}
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 md:grid-cols-3">
         {statCards.map((card) => (
           <div
             key={card.label}

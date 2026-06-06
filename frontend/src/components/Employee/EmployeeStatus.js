@@ -19,17 +19,11 @@ const CalendarIcon = () => (
   </svg>
 );
 
-function StatusBadge({ isReturned, isOverdue }) {
+function StatusBadge({ isReturned }) {
   if (isReturned)
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
         ✓ Returned
-      </span>
-    );
-  if (isOverdue)
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-        ⚠ Overdue
       </span>
     );
   return (
@@ -147,10 +141,6 @@ function EmployeeStatus() {
                     typeof assignment.assetId === "object"
                       ? assignment.assetId
                       : {};
-                  const isOverdue =
-                    assignment.tentativeReturnDate &&
-                    new Date(assignment.tentativeReturnDate) < new Date();
-
                   return (
                     <div
                       key={assignment._id}
@@ -171,7 +161,7 @@ function EmployeeStatus() {
                             </p>
                           </div>
                         </div>
-                        <StatusBadge isReturned={false} isOverdue={isOverdue} />
+                        <StatusBadge isReturned={false} />
                       </div>
 
                       {/* Dates */}
@@ -193,9 +183,7 @@ function EmployeeStatus() {
                             <CalendarIcon /> Due
                           </span>
                           <span
-                            className={`font-medium ${
-                              isOverdue ? "text-red-600" : "text-slate-800"
-                            }`}
+                            className="font-medium text-slate-800"
                           >
                             {assignment.tentativeReturnDate
                               ? new Date(
