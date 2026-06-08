@@ -177,7 +177,7 @@ function DashboardLayout() {
                 sessionStorage.clear();
                 navigate("/login", { replace: true });
               }}
-              className="mt-4 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+              className="mt-4 w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500"
             >
               Logout
             </button>
@@ -207,33 +207,45 @@ function DashboardLayout() {
             </div>
 
             {/* Avatar pill with dropdown */}
-            <div className="relative">
+            <div className="relative min-w-[140px]">
               <button
                 onClick={() => setProfileDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 transition hover:bg-slate-100"
+                className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 transition hover:bg-slate-100 justify-between"
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-white">
-                  {initials || "U"}
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-white shrink-0">
+                    {initials || "U"}
+                  </div>
+                  <span className="hidden text-xs font-medium capitalize text-slate-700 sm:block truncate max-w-[80px]">
+                    {profile.name}
+                  </span>
                 </div>
-                <span className="hidden text-xs font-medium capitalize text-slate-700 sm:block">
-                  {profile.name}
-                </span>
+                <svg
+                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
 
               {/* Dropdown Menu */}
-              {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                  <button
-                    onClick={() => {
-                      sessionStorage.clear();
-                      navigate("/login", { replace: true });
-                    }}
-                    className="flex w-full items-center rounded-xl px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
+              <div 
+                className={`absolute right-0 mt-2 w-full origin-top rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg z-50 transition-all duration-200 ease-out ${
+                  profileDropdownOpen 
+                    ? "opacity-100 translate-y-0 pointer-events-auto scale-100" 
+                    : "opacity-0 -translate-y-2 pointer-events-none scale-95"
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    sessionStorage.clear();
+                    navigate("/login", { replace: true });
+                  }}
+                  className="flex w-full items-center justify-center rounded-xl py-2 text-sm font-bold bg-yellow-400 text-slate-900 transition hover:bg-yellow-500"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </header>
 

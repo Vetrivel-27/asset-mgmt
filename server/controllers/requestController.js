@@ -129,12 +129,20 @@ export const updateRequestStatus = async (req, res) =>{
         }
         request.status = status;
         if(status === "approved" && assignedAssetId){
-            request.assignedAssetId = assignedAssetId;
-
-            // Automatically create assignment when approved
             const Assignment = (await import("../models/Assignment.js")).default;
             const Asset = (await import("../models/Asset.js")).default;
 
+            const asset = await Asset.findById(assignedAssetId);
+            if (!asset) {
+                return res.status(404).json({ message: "Selected asset not found." });
+            }
+            if (asset.status !== 'available') {
+                return res.status(400).json({ message: "Asset is no longer available. It may have been assigned to someone else." });
+            }
+
+            request.assignedAssetId = assignedAssetId;
+
+            // Automatically create assignment when approved
             await Assignment.create({
                 assetId: assignedAssetId,
                 employeeId: request.employeeId,
@@ -144,11 +152,20 @@ export const updateRequestStatus = async (req, res) =>{
             });
 
             // Update asset status to 'assigned'
-            const asset = await Asset.findById(assignedAssetId);
-            if (asset) {
-                asset.status = 'assigned';
-                await asset.save();
-            }
+            asset.status = 'assigned';
+            await asset.save();
+
+            // Automatically reject other pending requests for this same specific asset
+            await Request.updateMany(
+                {
+                    _id: { $ne: request._id },
+                    requestedAssetId: assignedAssetId,
+                    status: "pending"
+                },
+                {
+                    $set: { status: "rejected" }
+                }
+            );
         }
         await request.save();
         res.status(200).json({message: `Request ${status}`, request});

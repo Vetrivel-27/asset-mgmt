@@ -86,9 +86,6 @@ function AdminReports() {
             Overview: recent assignments, damaged items, availability.
           </p>
         </div>
-        <button className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900">
-          Export CSV
-        </button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">

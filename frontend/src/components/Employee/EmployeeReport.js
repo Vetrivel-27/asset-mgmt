@@ -38,7 +38,9 @@ function EmployeeReport() {
   // Build list of assets from my active assignments
   const borrowedAssets = useMemo(() => {
     return myAssignments.map((assignment) => {
-      const asset = typeof assignment.assetId === "object" ? assignment.assetId : {};
+      const asset = (typeof assignment.assetId === "object" && assignment.assetId !== null)
+        ? assignment.assetId
+        : {};
       return {
         ...asset,
         assignmentId: assignment._id,
@@ -56,8 +58,8 @@ function EmployeeReport() {
   );
 
   const reportOptions = [
-    { value: "damage", label: "Damaged / Faulty" },
-    { value: "request_return", label: "Request early return" },
+    { value: "damage", label: "Damaged" },
+    // { value: "request_return", label: "Request early return" },
     { value: "missing", label: "Missing / Lost" },
     { value: "other", label: "Other issue" },
   ];
@@ -206,39 +208,14 @@ function EmployeeReport() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <label
-                      htmlFor="severity"
-                      className="text-sm font-medium text-slate-700"
-                    >
-                      Urgency meter
-                    </label>
-                    <span className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                      {severity}%
-                    </span>
-                  </div>
-                  <input
-                    id="severity"
-                    type="range"
-                    min="10"
-                    max="100"
-                    value={severity}
-                    onChange={(e) => setSeverity(Number(e.target.value))}
-                    className="w-full accent-yellow-400"
-                  />
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <span>Low</span>
-                    <span>Critical</span>
-                  </div>
-                </div>
+                
 
                 <div className="space-y-2">
                   <label
                     htmlFor="comment"
                     className="block text-sm font-medium text-slate-700"
                   >
-                    Story of the issue
+                    Describe the issue
                   </label>
                   <textarea
                     id="comment"

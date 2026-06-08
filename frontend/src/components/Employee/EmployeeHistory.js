@@ -3,6 +3,7 @@ import { API_URL } from "../../config";
 
 function EmployeeHistory() {
   const [assignments, setAssignments] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -16,16 +17,18 @@ function EmployeeHistory() {
     async function loadHistory() {
       try {
         const token = sessionStorage.getItem("authToken");
-        const res = await fetch(`${API_URL}/api/assignments/my-assignments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const [assignmentsRes, requestsRes] = await Promise.all([
+          fetch(`${API_URL}/api/assignments/my-assignments`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/requests/my-requests`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+
+        const assignmentsData = await assignmentsRes.json();
+        const requestsData = await requestsRes.json();
+
         if (!mounted) return;
-        setAssignments(
-          (Array.isArray(data) ? data : []).sort(
-            (a, b) => new Date(b.assignedDate) - new Date(a.assignedDate)
-          )
-        );
+
+        setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
+        setRequests(requestsData.requests ? requestsData.requests : []);
       } catch (error) {
         console.error("Failed to load history", error);
       } finally {
@@ -40,34 +43,50 @@ function EmployeeHistory() {
     };
   }, []);
 
-  // Flatten asset data from populated assetId field
-  const borrowedAssets = useMemo(() => {
-    return assignments.map((assignment) => {
-      const asset = typeof assignment.assetId === "object" ? assignment.assetId : {};
+  // Merge active/returned assignments and rejected requests
+  const combinedHistory = useMemo(() => {
+    const assignmentRecords = assignments.map((assignment) => {
+      const asset = (typeof assignment.assetId === "object" && assignment.assetId !== null) ? assignment.assetId : {};
       return {
         ...assignment,
         asset,
+        recordType: 'assignment',
+        dateSort: new Date(assignment.assignedDate).getTime()
       };
     });
-  }, [assignments]);
+
+    const rejectedRecords = requests.filter(r => r.status === 'rejected').map((req) => {
+      const asset = (typeof req.requestedAssetId === "object" && req.requestedAssetId !== null) ? req.requestedAssetId : { name: req.assetType };
+      return {
+        ...req,
+        asset,
+        recordType: 'rejected_request',
+        dateSort: new Date(req.updatedAt || req.createdAt).getTime()
+      };
+    });
+
+    return [...assignmentRecords, ...rejectedRecords].sort((a, b) => b.dateSort - a.dateSort);
+  }, [assignments, requests]);
 
   const filteredHistory = useMemo(() => {
     const term = search.toLowerCase();
-    return borrowedAssets.filter((record) => {
-      const name = record.asset?.name?.toLowerCase() || "";
+    return combinedHistory.filter((record) => {
+      const name = record.asset?.name?.toLowerCase() || record.assetType?.toLowerCase() || "";
       const id = String(record.asset?.assetId || "");
       return name.includes(term) || id.includes(term);
     });
-  }, [borrowedAssets, search]);
+  }, [combinedHistory, search]);
 
   const stats = useMemo(() => {
-    const total = filteredHistory.length;
-    const returned = filteredHistory.filter((r) => !!r.returnedDate).length;
-    const pending = total - returned;
-    return { total, returned, pending };
+    const total = filteredHistory.filter(r => r.recordType === 'assignment').length;
+    const returned = filteredHistory.filter((r) => r.recordType === 'assignment' && !!r.returnedDate).length;
+    const pending = filteredHistory.filter(r => r.recordType === 'rejected_request').length; // using pending card for rejected
+    return { total, returned, rejected: pending };
   }, [filteredHistory]);
 
   const statusLabel = (record) => {
+    if (record.recordType === 'rejected_request')
+      return { text: "Rejected", classes: "bg-red-100 text-red-700 border-red-200" };
     if (record.returnedDate)
       return { text: "Returned", classes: "bg-green-100 text-green-700 border-green-200" };
     return { text: "Active", classes: "bg-blue-100 text-blue-700 border-blue-200" };
@@ -104,10 +123,10 @@ function EmployeeHistory() {
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Pending
+              Rejected
             </p>
             <p className="mt-3 text-3xl font-bold text-red-500">
-              {stats.pending}
+              {stats.rejected}
             </p>
           </div>
         </div>
@@ -181,15 +200,17 @@ function EmployeeHistory() {
                           className="cursor-pointer hover:bg-slate-50 transition-colors"
                         >
                           <td className="px-4 py-4 text-sm font-medium text-slate-900">
-                            {record.asset?.name || "Unknown asset"}
+                            {record.asset?.name || record.assetType || "Unknown asset"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
                             {record.asset?.assetId || "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.assignedDate
+                            {record.recordType === 'assignment' && record.assignedDate
                               ? new Date(record.assignedDate).toLocaleDateString()
-                              : "—"}
+                              : record.recordType === 'rejected_request' 
+                                ? new Date(record.createdAt).toLocaleDateString() 
+                                : "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
                             {record.returnedDate
@@ -226,10 +247,10 @@ function EmployeeHistory() {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">
-                            {record.asset?.name || "Unknown asset"}
+                            {record.asset?.name || record.assetType || "Unknown asset"}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            ID: {record.asset?.assetId || record.assetId || "—"}
+                            ID: {record.asset?.assetId || "—"}
                           </p>
                         </div>
                         <span
@@ -240,11 +261,15 @@ function EmployeeHistory() {
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                          <p className="text-xs text-slate-400 font-medium">Borrowed</p>
+                          <p className="text-xs text-slate-400 font-medium">
+                            {record.recordType === 'rejected_request' ? "Requested" : "Borrowed"}
+                          </p>
                           <p className="mt-1 text-xs font-bold text-slate-700">
-                            {record.assignedDate
+                            {record.recordType === 'assignment' && record.assignedDate
                               ? new Date(record.assignedDate).toLocaleDateString()
-                              : "—"}
+                              : record.recordType === 'rejected_request' 
+                                ? new Date(record.createdAt).toLocaleDateString() 
+                                : "—"}
                           </p>
                         </div>
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
@@ -351,24 +376,34 @@ function EmployeeHistory() {
                     <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
                     <p className="text-xs font-bold text-slate-800">Borrow Request Submitted</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Submitted by you for approval.
+                      Submitted by you for approval on {new Date(selectedRecord.createdAt || selectedRecord.assignedDate).toLocaleDateString()}.
                     </p>
                   </div>
 
-                  {/* Step 2: Approved */}
-                  <div className="relative">
-                    <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
-                    <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.userId || "System Admin"}</span> on{" "}
-                      {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
-                    </p>
-                    {selectedRecord.tentativeReturnDate && (
-                      <p className="text-[11px] font-semibold text-amber-600 mt-1">
-                        Tentative return date: {new Date(selectedRecord.tentativeReturnDate).toLocaleDateString()}
+                  {/* Step 2: Approved / Rejected */}
+                  {selectedRecord.recordType === 'rejected_request' ? (
+                    <div className="relative">
+                      <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-4 ring-white"></span>
+                      <p className="text-xs font-bold text-red-700">Request Rejected</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        This request was rejected. The asset may no longer be available.
                       </p>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
+                      <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.userId || "System Admin"}</span> on{" "}
+                        {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
+                      </p>
+                      {selectedRecord.tentativeReturnDate && (
+                        <p className="text-[11px] font-semibold text-amber-600 mt-1">
+                          Tentative return date: {new Date(selectedRecord.tentativeReturnDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Step 3: Returned */}
                   {selectedRecord.returnedDate && (

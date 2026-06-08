@@ -138,7 +138,7 @@ function EmployeeStatus() {
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {activeAssignments.map((assignment) => {
                   const asset =
-                    typeof assignment.assetId === "object"
+                    (typeof assignment.assetId === "object" && assignment.assetId !== null)
                       ? assignment.assetId
                       : {};
                   return (
@@ -233,7 +233,7 @@ function EmployeeStatus() {
                   <tbody className="divide-y divide-slate-200">
                     {returnedAssignments.map((assignment) => {
                       const asset =
-                        typeof assignment.assetId === "object"
+                        (typeof assignment.assetId === "object" && assignment.assetId !== null)
                           ? assignment.assetId
                           : {};
                       return (

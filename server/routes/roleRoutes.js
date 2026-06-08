@@ -5,7 +5,7 @@ import { verifyToken, requirePermission } from '../middleware/authMiddleware.js'
 const router = express.Router();
 
 // Only Admins with 'manage_roles' can use these
-router.get('/', verifyToken, requirePermission('manage_roles'), getRoles);
+router.get('/', verifyToken, requirePermission(['manage_roles', 'manage_users']), getRoles);
 router.post('/', verifyToken, requirePermission('manage_roles'), createRole);
 router.put('/:id', verifyToken, requirePermission('manage_roles'), updateRole);
 router.delete('/:id', verifyToken, requirePermission('manage_roles'), deleteRole);
