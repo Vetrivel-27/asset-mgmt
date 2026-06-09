@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
+import { hasPermission } from "../../permissions";
 
 function EmployeeHistory() {
   const [assignments, setAssignments] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   // Sidebar / Logs Drawer State
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -17,18 +20,31 @@ function EmployeeHistory() {
     async function loadHistory() {
       try {
         const token = sessionStorage.getItem("authToken");
-        const [assignmentsRes, requestsRes] = await Promise.all([
+        const fetchPromises = [
           fetch(`${API_URL}/api/assignments/my-assignments`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_URL}/api/requests/my-requests`, { headers: { Authorization: `Bearer ${token}` } })
-        ]);
+        ];
 
-        const assignmentsData = await assignmentsRes.json();
-        const requestsData = await requestsRes.json();
+        const canViewDamage = hasPermission("view_damage");
+        if (canViewDamage) {
+          fetchPromises.push(
+            fetch(`${API_URL}/api/reports/my-reports`, { headers: { Authorization: `Bearer ${token}` } })
+          );
+        }
+
+        const responses = await Promise.all(fetchPromises);
+        const assignmentsData = await responses[0].json();
+        const requestsData = await responses[1].json();
+        let reportsData = { reports: [] };
+        if (canViewDamage && responses[2]) {
+          reportsData = await responses[2].json();
+        }
 
         if (!mounted) return;
 
         setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
         setRequests(requestsData.requests ? requestsData.requests : []);
+        setReports(reportsData.reports ? reportsData.reports : []);
       } catch (error) {
         console.error("Failed to load history", error);
       } finally {
@@ -43,7 +59,7 @@ function EmployeeHistory() {
     };
   }, []);
 
-  // Merge active/returned assignments and rejected requests
+  // Merge active/returned assignments, rejected requests, and damage reports
   const combinedHistory = useMemo(() => {
     const assignmentRecords = assignments.map((assignment) => {
       const asset = (typeof assignment.assetId === "object" && assignment.assetId !== null) ? assignment.assetId : {};
@@ -65,28 +81,51 @@ function EmployeeHistory() {
       };
     });
 
-    return [...assignmentRecords, ...rejectedRecords].sort((a, b) => b.dateSort - a.dateSort);
-  }, [assignments, requests]);
+    const reportRecords = reports.map((report) => {
+      const asset = (typeof report.assetId === "object" && report.assetId !== null) ? report.assetId : {};
+      return {
+        ...report,
+        asset,
+        recordType: 'damage_report',
+        dateSort: new Date(report.createdAt).getTime()
+      };
+    });
+
+    return [...assignmentRecords, ...rejectedRecords, ...reportRecords].sort((a, b) => b.dateSort - a.dateSort);
+  }, [assignments, requests, reports]);
 
   const filteredHistory = useMemo(() => {
     const term = search.toLowerCase();
     return combinedHistory.filter((record) => {
+      if (typeFilter !== "all") {
+        if (typeFilter === "assigned" && (record.recordType !== "assignment" || !!record.returnedDate)) return false;
+        if (typeFilter === "returned" && (record.recordType !== "assignment" || !record.returnedDate)) return false;
+        if (typeFilter === "rejected" && record.recordType !== "rejected_request") return false;
+        if (typeFilter === "reports" && record.recordType !== "damage_report") return false;
+      }
+
       const name = record.asset?.name?.toLowerCase() || record.assetType?.toLowerCase() || "";
       const id = String(record.asset?.assetId || "");
       return name.includes(term) || id.includes(term);
     });
-  }, [combinedHistory, search]);
+  }, [combinedHistory, search, typeFilter]);
 
   const stats = useMemo(() => {
-    const total = filteredHistory.filter(r => r.recordType === 'assignment').length;
-    const returned = filteredHistory.filter((r) => r.recordType === 'assignment' && !!r.returnedDate).length;
-    const pending = filteredHistory.filter(r => r.recordType === 'rejected_request').length; // using pending card for rejected
-    return { total, returned, rejected: pending };
-  }, [filteredHistory]);
+    const total = combinedHistory.filter(r => r.recordType === 'assignment').length;
+    const returned = combinedHistory.filter((r) => r.recordType === 'assignment' && !!r.returnedDate).length;
+    const currentlyOwning = combinedHistory.filter((r) => r.recordType === 'assignment' && !r.returnedDate).length;
+    const damageReports = combinedHistory.filter(r => r.recordType === 'damage_report').length;
+    return { total, returned, currentlyOwning, damageReports };
+  }, [combinedHistory]);
 
   const statusLabel = (record) => {
     if (record.recordType === 'rejected_request')
       return { text: "Rejected", classes: "bg-red-100 text-red-700 border-red-200" };
+    if (record.recordType === 'damage_report') {
+      if (record.status === 'open') return { text: "Report Open", classes: "bg-amber-100 text-amber-700 border-amber-200" };
+      if (record.status === 'in_progress') return { text: "In Progress", classes: "bg-blue-100 text-blue-700 border-blue-200" };
+      return { text: "Resolved", classes: "bg-green-100 text-green-700 border-green-200" };
+    }
     if (record.returnedDate)
       return { text: "Returned", classes: "bg-green-100 text-green-700 border-green-200" };
     return { text: "Active", classes: "bg-blue-100 text-blue-700 border-blue-200" };
@@ -95,8 +134,8 @@ function EmployeeHistory() {
   return (
     <div className="relative space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
             Asset History
           </h2>
@@ -104,52 +143,77 @@ function EmployeeHistory() {
             A complete log of your borrowed assets, approval histories, return records, and current statuses.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 w-full lg:w-auto">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
               Borrowed
             </p>
-            <p className="mt-3 text-3xl font-bold text-orange-400">
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-orange-400">
               {stats.total}
             </p>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
               Returned
             </p>
-            <p className="mt-3 text-3xl font-bold text-emerald-500">
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-emerald-500">
               {stats.returned}
             </p>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Rejected
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Currently Owning
             </p>
-            <p className="mt-3 text-3xl font-bold text-red-500">
-              {stats.rejected}
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-500">
+              {stats.currentlyOwning}
             </p>
           </div>
+          {hasPermission("view_damage") && (
+            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Damage Reports
+              </p>
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-yellow-500">
+                {stats.damageReports}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Table Card */}
       <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
             <p className="text-sm font-semibold text-slate-900">
               Your History Logs
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 max-w-2xl">
               Click any record row below to view detailed approval details and borrow logs.
             </p>
           </div>
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search assets or IDs..."
-            className="w-full md:w-80 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row w-full lg:w-auto">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full sm:w-auto rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-yellow-400"
+            >
+              <option value="all">All records</option>
+              <option value="assigned">Assigned assets</option>
+              <option value="returned">Returned assets</option>
+              <option value="rejected">Requests declined</option>
+              {hasPermission("view_damage") && (
+                <option value="reports">Reported damages</option>
+              )}
+            </select>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search assets or IDs..."
+              className="w-full lg:w-80 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+            />
+          </div>
         </div>
 
         <div className="mt-6">
@@ -177,7 +241,7 @@ function EmployeeHistory() {
                         Asset ID
                       </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Borrowed Date
+                        Date
                       </th>
                       <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
                         Returned Date
@@ -208,7 +272,7 @@ function EmployeeHistory() {
                           <td className="px-4 py-4 text-sm text-slate-500">
                             {record.recordType === 'assignment' && record.assignedDate
                               ? new Date(record.assignedDate).toLocaleDateString()
-                              : record.recordType === 'rejected_request' 
+                              : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
                                 ? new Date(record.createdAt).toLocaleDateString() 
                                 : "—"}
                           </td>
@@ -262,12 +326,12 @@ function EmployeeHistory() {
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                           <p className="text-xs text-slate-400 font-medium">
-                            {record.recordType === 'rejected_request' ? "Requested" : "Borrowed"}
+                            {record.recordType === 'rejected_request' ? "Requested" : record.recordType === 'damage_report' ? "Reported" : "Borrowed"}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-700">
                             {record.recordType === 'assignment' && record.assignedDate
                               ? new Date(record.assignedDate).toLocaleDateString()
-                              : record.recordType === 'rejected_request' 
+                              : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
                                 ? new Date(record.createdAt).toLocaleDateString() 
                                 : "—"}
                           </p>
@@ -345,79 +409,128 @@ function EmployeeHistory() {
                 </div>
               </div>
 
-              {/* Approval Details Log */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Approval Details</p>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700 text-sm font-bold">
-                      {(selectedRecord.createdBy?.userId || "Admin").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approved By</p>
-                      <p className="text-sm font-bold text-slate-800">{selectedRecord.createdBy?.userId || "System Admin"}</p>
+              {/* Approval Details Log or Report Details */}
+              {selectedRecord.recordType === 'damage_report' ? (
+                <>
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Report Details</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
+                      <div>
+                        <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Report Type</p>
+                        <p className="text-sm font-bold text-slate-800 capitalize">{selectedRecord.type || "General"}</p>
+                      </div>
+                      <div className="pt-2 border-t border-slate-100">
+                        <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Message / Details</p>
+                        <p className="text-sm text-slate-700">{selectedRecord.message || "No message specified."}</p>
+                      </div>
                     </div>
                   </div>
-                  {selectedRecord.createdBy?.email && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approver Email</p>
-                      <p className="text-xs font-semibold text-slate-700 break-all">{selectedRecord.createdBy?.email}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Status Timeline logs */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status Logs & History Trace</p>
-                <div className="relative border-l border-slate-200 pl-5 ml-2 space-y-6">
-                  {/* Step 1: Requested */}
-                  <div className="relative">
-                    <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
-                    <p className="text-xs font-bold text-slate-800">Borrow Request Submitted</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Submitted by you for approval on {new Date(selectedRecord.createdAt || selectedRecord.assignedDate).toLocaleDateString()}.
-                    </p>
-                  </div>
-
-                  {/* Step 2: Approved / Rejected */}
-                  {selectedRecord.recordType === 'rejected_request' ? (
-                    <div className="relative">
-                      <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-4 ring-white"></span>
-                      <p className="text-xs font-bold text-red-700">Request Rejected</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        This request was rejected. The asset may no longer be available.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
-                      <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.userId || "System Admin"}</span> on{" "}
-                        {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
-                      </p>
-                      {selectedRecord.tentativeReturnDate && (
-                        <p className="text-[11px] font-semibold text-amber-600 mt-1">
-                          Tentative return date: {new Date(selectedRecord.tentativeReturnDate).toLocaleDateString()}
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status Logs & History Trace</p>
+                    <div className="relative border-l border-slate-200 pl-5 ml-2 space-y-6">
+                      <div className="relative">
+                        <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
+                        <p className="text-xs font-bold text-slate-800">Report Submitted</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Submitted by you on {new Date(selectedRecord.createdAt).toLocaleString()}.
                         </p>
+                      </div>
+
+                      {(selectedRecord.status === 'in_progress' || selectedRecord.status === 'resolved') && (
+                        <div className="relative">
+                          <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white"></span>
+                          <p className="text-xs font-bold text-blue-700">Maintenance In Progress</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Report is being reviewed and the asset is undergoing maintenance.
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedRecord.status === 'resolved' && (
+                        <div className="relative">
+                          <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
+                          <p className="text-xs font-bold text-emerald-700">Report Resolved</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Issue resolved. The asset has been set back to available.
+                          </p>
+                        </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Step 3: Returned */}
-                  {selectedRecord.returnedDate && (
-                    <div className="relative">
-                      <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white"></span>
-                      <p className="text-xs font-bold text-blue-700">Asset Returned</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Returned and checked back in on{" "}
-                        {new Date(selectedRecord.returnedDate).toLocaleString()}.
-                      </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Approval Details</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700 text-sm font-bold">
+                          {(selectedRecord.createdBy?.userId || "Admin").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approved By</p>
+                          <p className="text-sm font-bold text-slate-800">{selectedRecord.createdBy?.userId || "System Admin"}</p>
+                        </div>
+                      </div>
+                      {selectedRecord.createdBy?.email && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approver Email</p>
+                          <p className="text-xs font-semibold text-slate-700 break-all">{selectedRecord.createdBy?.email}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status Logs & History Trace</p>
+                    <div className="relative border-l border-slate-200 pl-5 ml-2 space-y-6">
+                      <div className="relative">
+                        <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
+                        <p className="text-xs font-bold text-slate-800">Borrow Request Submitted</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Submitted by you for approval on {new Date(selectedRecord.createdAt || selectedRecord.assignedDate).toLocaleDateString()}.
+                        </p>
+                      </div>
+
+                      {selectedRecord.recordType === 'rejected_request' ? (
+                        <div className="relative">
+                          <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-4 ring-white"></span>
+                          <p className="text-xs font-bold text-red-700">Request Rejected</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            This request was rejected. The asset may no longer be available.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
+                          <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.userId || "System Admin"}</span> on{" "}
+                            {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
+                          </p>
+                          {selectedRecord.tentativeReturnDate && (
+                            <p className="text-[11px] font-semibold text-amber-600 mt-1">
+                              Tentative return date: {new Date(selectedRecord.tentativeReturnDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedRecord.returnedDate && (
+                        <div className="relative">
+                          <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white"></span>
+                          <p className="text-xs font-bold text-blue-700">Asset Returned</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Returned and checked back in on{" "}
+                            {new Date(selectedRecord.returnedDate).toLocaleString()}.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Footer */}

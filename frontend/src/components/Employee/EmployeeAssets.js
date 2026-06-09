@@ -233,10 +233,10 @@ function EmployeeAssets() {
       )}
 
       {/* Filters Panel */}
-      <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+      <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-end">
           {/* Search Box */}
-          <div className="relative flex-1">
+          <div className="relative lg:col-span-6">
             <span className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" />
@@ -252,60 +252,63 @@ function EmployeeAssets() {
             />
           </div>
 
-          {/* Type Filter */}
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 sm:mr-2">Type</label>
-            <select
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-            >
-              <option value="">All Categories</option>
-              {types.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Filters: Type, Status, Limit */}
+          <div className="grid grid-cols-3 gap-3 lg:col-span-6">
+            {/* Type Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Type</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+              >
+                <option value="">All Categories</option>
+                {types.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Status Filter */}
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 sm:mr-2">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-            >
-              <option value="">All Statuses</option>
-              <option value="available">Available</option>
-              <option value="assigned">Borrowed</option>
-              <option value="maintenance">Damaged</option>
-            </select>
-          </div>
+            {/* Status Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+              >
+                <option value="">All Statuses</option>
+                <option value="available">Available</option>
+                <option value="assigned">Borrowed</option>
+                <option value="maintenance">Damaged</option>
+              </select>
+            </div>
 
-          {/* Page Limit */}
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 sm:mr-2">Show</label>
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-            >
-              <option value={6}>6 items</option>
-              <option value={12}>12 items</option>
-              <option value={24}>24 items</option>
-              <option value={48}>48 items</option>
-            </select>
+            {/* Page Limit */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Show</label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-sm font-medium text-slate-700 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+              >
+                <option value={6}>6 items</option>
+                <option value={12}>12 items</option>
+                <option value={24}>24 items</option>
+                <option value={48}>48 items</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

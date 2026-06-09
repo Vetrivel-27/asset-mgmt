@@ -386,11 +386,11 @@ function AdminEmployees() {
               No employees found.
             </div>
           ) : viewMode === "grid" ? (
-            <div className="grid gap-6 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {pageItems.map((employee) => (
                 <div
                   key={employee._id || employee.employeeId || employee.email}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm min-w-0"
                 >
                   <div
                     className={`mx-auto h-16 w-16 rounded-full ${getAvatarColor(employee)} flex items-center justify-center text-white font-semibold text-xl`}
@@ -403,20 +403,20 @@ function AdminEmployees() {
                           .join("")
                       : "—"}
                   </div>
-                  <div className="mt-3">
-                    <div className="text-sm font-medium text-slate-900">
+                  <div className="mt-3 min-w-0 text-center">
+                    <div className="text-sm font-semibold text-slate-900 truncate" title={employee.name || ""}>
                       {employee.name || "—"}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 truncate" title={employee.department || ""}>
                       {employee.department || "—"}
                     </div>
-                    <div className="text-xs capitalize text-slate-500">
+                    <div className="text-xs capitalize text-slate-500 truncate" title={employee.roleName || ""}>
                       {employee.roleName || "—"}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
+                    <div className="text-xs text-slate-400 mt-1 truncate" title={employee.employeeId || ""}>
                       ID: {employee.employeeId || "—"}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
+                    <div className="text-xs text-slate-400 mt-1 truncate" title={employee.email || ""}>
                       {employee.email || "—"}
                     </div>
                   </div>
