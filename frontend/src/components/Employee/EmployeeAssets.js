@@ -288,7 +288,8 @@ function EmployeeAssets() {
                 <option value="">All Statuses</option>
                 <option value="available">Available</option>
                 <option value="assigned">Borrowed</option>
-                <option value="maintenance">Damaged</option>
+                <option value="damage">Damaged</option>
+                <option value="repair">Under Repair</option>
               </select>
             </div>
 
@@ -332,7 +333,7 @@ function EmployeeAssets() {
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {assets.map((asset) => {
               const isAssigned = asset.status?.toLowerCase() === "assigned";
-              const isMaintenance = asset.status?.toLowerCase() === "maintenance"; // Damaged
+              const isMaintenance = asset.status?.toLowerCase() === "damage" || asset.status?.toLowerCase() === "repair" || asset.status?.toLowerCase() === "maintenance"; // Damaged or Under Repair
 
               return (
                 <div
@@ -353,11 +354,19 @@ function EmployeeAssets() {
                           asset.status?.toLowerCase() === "available"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : isAssigned
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-red-50 text-red-700 border-red-200"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : asset.status?.toLowerCase() === "damage" || asset.status?.toLowerCase() === "maintenance"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : asset.status?.toLowerCase() === "repair"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
                         }`}
                       >
-                        {asset.status === "maintenance" ? "Damaged" : asset.status}
+                        {asset.status === "damage" || asset.status === "maintenance"
+                          ? "Damaged"
+                          : asset.status === "repair"
+                            ? "Under Repair"
+                            : asset.status}
                       </span>
                     </div>
                   </div>
@@ -392,7 +401,11 @@ function EmployeeAssets() {
                           disabled
                           className="w-full rounded-2xl bg-slate-100 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed border border-slate-200"
                         >
-                          {isMaintenance ? "Unavailable (Damaged)" : "Borrowed"}
+                          {asset.status?.toLowerCase() === "repair"
+                            ? "Under Repair"
+                            : isMaintenance
+                              ? "Unavailable (Damaged)"
+                              : "Borrowed"}
                         </button>
                       )}
                     </div>

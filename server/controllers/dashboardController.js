@@ -8,16 +8,21 @@ export const getDashboardStats = async (req, res) => {
         const totalAssets = await Asset.countDocuments();
         const availableAssets = await Asset.countDocuments({status: 'available' });
         const assignedAssets = await Asset.countDocuments({ status:'assigned'});    
-        const maintenanceAssets = await Asset.countDocuments({ status:'maintenance'});
+        const damageAssets = await Asset.countDocuments({ status:'damage'});
+        const repairAssets = await Asset.countDocuments({ status:'repair'});
+        const maintenanceAssets = await Asset.countDocuments({ status: { $in: ['maintenance', 'damage', 'repair'] } });
         //Other counts
         const totalEmployees = await Employee.countDocuments();
         const openDamageReports = await AssetReport.countDocuments({ type:'damage', status:'open' });
 
         res.status(200).json({
-            assets: {total: totalAssets,
+            assets: {
+                total: totalAssets,
                 available: availableAssets,
                 assigned: assignedAssets,
-                maintenance: maintenanceAssets
+                maintenance: maintenanceAssets,
+                damage: damageAssets,
+                repair: repairAssets
             },
             employees: {total: totalEmployees},
             reports: {openDamage: openDamageReports}

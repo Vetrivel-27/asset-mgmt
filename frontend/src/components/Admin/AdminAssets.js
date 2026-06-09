@@ -40,6 +40,10 @@ function AdminAssets() {
   const [editPurchaseDate, setEditPurchaseDate] = useState("");
   const [editStatus, setEditStatus] = useState("available");
 
+  // Form states (Delete Confirmation Modal)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState(null);
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
@@ -161,22 +165,26 @@ function AdminAssets() {
     }
   };
 
-  // Delete asset (soft delete)
-  const handleDeleteAsset = async (asset) => {
-    if (!window.confirm(`Are you sure you want to delete ${asset.name} (${asset.assetId})?`)) {
-      return;
-    }
+  // Delete asset (soft delete confirmation open)
+  const handleDeleteAsset = (asset) => {
+    setAssetToDelete(asset);
+    setDeleteModalOpen(true);
+  };
+
+  // Submit Delete Request
+  const handleConfirmDelete = async () => {
+    if (!assetToDelete) return;
     setSubmitError("");
     setSubmitSuccess("");
     try {
       const token = sessionStorage.getItem("authToken");
-      const res = await fetch(`${API_URL}/api/assets/${asset._id}`, {
+      const res = await fetch(`${API_URL}/api/assets/${assetToDelete._id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        setAssets((prev) => prev.filter((a) => a._id !== asset._id));
-        setSubmitSuccess(`Asset "${asset.name}" removed successfully.`);
+        setAssets((prev) => prev.filter((a) => a._id !== assetToDelete._id));
+        setSubmitSuccess(`Asset "${assetToDelete.name}" removed successfully.`);
         setTimeout(() => setSubmitSuccess(""), 3500);
       } else {
         const data = await res.json();
@@ -185,6 +193,9 @@ function AdminAssets() {
     } catch (err) {
       setSubmitError(err.message || "Error deleting asset.");
       setTimeout(() => setSubmitError(""), 5000);
+    } finally {
+      setDeleteModalOpen(false);
+      setAssetToDelete(null);
     }
   };
 
@@ -419,7 +430,8 @@ function AdminAssets() {
               { id: "all", label: "All" },
               { id: "available", label: "Available" },
               { id: "assigned", label: "Assigned" },
-              { id: "maintenance", label: "Maintenance" }
+              { id: "damage", label: "Damaged" },
+              { id: "repair", label: "Under Repair" }
             ].map((btn) => (
               <button
                 key={btn.id}
@@ -447,19 +459,20 @@ function AdminAssets() {
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Asset ID</th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Category</th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Assigned To</th>
                 <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-slate-500">
                     Loading assets...
                   </td>
                 </tr>
               ) : currentPageAssets.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-slate-500">
                     No assets found matching the search or status.
                   </td>
                 </tr>
@@ -482,11 +495,29 @@ function AdminAssets() {
                             ? "bg-green-50 text-green-700 border-green-200"
                             : asset.status === "assigned"
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-red-50 text-red-700 border-red-200"
+                              : asset.status === "damage"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : asset.status === "repair"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
                         }`}
                       >
-                        {asset.status}
+                        {asset.status === "damage"
+                          ? "Damaged"
+                          : asset.status === "repair"
+                            ? "Under Repair"
+                            : asset.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-slate-900">
+                      {asset.status === "assigned" && asset.assignedTo ? (
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-800">{asset.assignedTo.name}</span>
+                          <span className="text-xs text-slate-400">ID: {asset.assignedTo.userId?.userId || "—"}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-right text-sm">
                       <CanAccess permission="manage_asset">
@@ -628,16 +659,31 @@ function AdminAssets() {
 
               <label className="block">
                 <span className="text-xs font-semibold text-slate-600">Status</span>
-                <select
-                  required
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                >
-                  <option value="available">Available</option>
-                  <option value="assigned">Assigned</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
+                {editAsset.status === "assigned" ? (
+                  <div className="mt-2">
+                    <select
+                      disabled
+                      value="assigned"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-500 px-4 py-2.5 text-sm cursor-not-allowed outline-none"
+                    >
+                      <option value="assigned">Assigned</option>
+                    </select>
+                    <p className="mt-1.5 text-xs font-medium text-slate-400">
+                      ℹ Status cannot be changed directly while assigned. Use the Assignments page to return/reassign.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                  >
+                    <option value="available">Available</option>
+                    <option value="damage">Damaged</option>
+                    <option value="repair">Under Repair</option>
+                  </select>
+                )}
               </label>
 
               <div className="flex items-center gap-3 pt-2">
@@ -660,6 +706,76 @@ function AdminAssets() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && assetToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-fade-in">
+            {/* Header */}
+            <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
+              <div>
+                <h3 className="font-bold text-lg">Delete Asset</h3>
+                <p className="text-xs font-bold text-black mt-0.5">This action cannot be undone</p>
+              </div>
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setAssetToDelete(null);
+                }}
+                className="text-yellow-400 hover:text-white rounded-full p-1 transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 text-yellow-400">
+                <svg className="w-10 h-10 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-sm font-semibold text-slate-800">
+                  Are you sure you want to permanently delete this asset?
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-1 text-sm text-slate-700">
+                <div>
+                  <span className="font-semibold text-slate-500">Asset Name: </span>
+                  <span className="font-bold text-slate-800">{assetToDelete.name}</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-500">Asset ID: </span>
+                  <span className="font-mono font-bold text-slate-800">{assetToDelete.assetId}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 shadow-sm"
+                >
+                  Yes, Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setAssetToDelete(null);
+                  }}
+                  className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

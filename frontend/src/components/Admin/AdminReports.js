@@ -48,7 +48,11 @@ function AdminReports() {
   const damagedAssets = useMemo(
     () =>
       assets.filter(
-        (a) => (a.status || a.condition || "").toLowerCase() === "damaged" || (a.status || "").toLowerCase() === "maintenance",
+        (a) =>
+          (a.status || a.condition || "").toLowerCase() === "damaged" ||
+          (a.status || "").toLowerCase() === "maintenance" ||
+          (a.status || "").toLowerCase() === "damage" ||
+          (a.status || "").toLowerCase() === "repair",
       ),
     [assets],
   );

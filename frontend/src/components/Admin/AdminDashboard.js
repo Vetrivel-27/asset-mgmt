@@ -230,19 +230,32 @@ function AdminDashboard() {
     async function loadAll() {
       try {
         const headers = getAuthHeaders();
-        const [assetsRes, empRes, assignRes, rolesRes] = await Promise.all([
-          fetch(`${API_URL}/api/assets`, { headers }),
-          fetch(`${API_URL}/api/employees`, { headers }),
-          fetch(`${API_URL}/api/assignments`, { headers }),
-          fetch(`${API_URL}/api/roles`, { headers }),
-        ]);
-        const [assets, employees, assignments, rolesData] = await Promise.all([
-          assetsRes.json(), empRes.json(), assignRes.json(), rolesRes.json(),
+
+        const safeFetch = async (url) => {
+          try {
+            const res = await fetch(url, { headers });
+            if (!res.ok) return [];
+            return await res.json();
+          } catch (e) {
+            console.error(`Failed to fetch ${url}`, e);
+            return [];
+          }
+        };
+
+        const [assets, employees, assignments, rolesData, requests, reports] = await Promise.all([
+          safeFetch(`${API_URL}/api/assets`),
+          safeFetch(`${API_URL}/api/employees`),
+          safeFetch(`${API_URL}/api/assignments`),
+          safeFetch(`${API_URL}/api/roles`),
+          safeFetch(`${API_URL}/api/requests`),
+          safeFetch(`${API_URL}/api/reports`),
         ]);
 
         const assetsArr = Array.isArray(assets) ? assets : [];
         const empArr = Array.isArray(employees) ? employees : [];
         const assignArr = Array.isArray(assignments) ? assignments : [];
+        const reqArr = Array.isArray(requests) ? requests : [];
+        const repArr = Array.isArray(reports) ? reports : [];
 
         setStats({
           assets: assetsArr.length,
@@ -250,28 +263,58 @@ function AdminDashboard() {
           activeAssignments: assignArr.filter(a => !a.returnedDate).length,
         });
 
-        // Build activity feed: sort all assignments by most recent date
-        const feed = assignArr
-          .map(a => {
-            const asset = typeof a.assetId === "object" ? a.assetId : {};
-            const employee = typeof a.employeeId === "object" ? a.employeeId : {};
-            if (a.returnedDate) {
-              return {
-                id: `ret-${a._id}`,
-                type: "return",
-                text: `${asset.name || "Asset"} returned by ${employee.name || "Employee"}`,
-                date: new Date(a.returnedDate),
-              };
-            }
+        // 1. Assignments activities
+        const assignmentActivities = assignArr.map(a => {
+          const asset = typeof a.assetId === "object" && a.assetId !== null ? a.assetId : {};
+          const employee = typeof a.employeeId === "object" && a.employeeId !== null ? a.employeeId : {};
+          if (a.returnedDate) {
             return {
-              id: `asgn-${a._id}`,
-              type: "assign",
-              text: `${asset.name || "Asset"} assigned to ${employee.name || "Employee"}`,
-              date: new Date(a.assignedDate || a.createdAt),
+              id: `ret-${a._id}`,
+              type: "return",
+              text: `${asset.name || "Asset"} returned by ${employee.name || "Employee"}`,
+              date: new Date(a.returnedDate),
             };
-          })
+          }
+          return {
+            id: `asgn-${a._id}`,
+            type: "assign",
+            text: `${asset.name || "Asset"} assigned to ${employee.name || "Employee"}`,
+            date: new Date(a.assignedDate || a.createdAt),
+          };
+        });
+
+        // 2. Request activities
+        const requestActivities = reqArr.map(r => {
+          const assetName = r.requestedAssetId?.name || r.assetType || "Asset";
+          const employeeName = r.employeeId?.name || "Employee";
+          return {
+            id: `req-${r._id}`,
+            type: "request",
+            text: `Borrow request for ${assetName} filed by ${employeeName} (${r.status})`,
+            date: new Date(r.createdAt),
+          };
+        });
+
+        // 3. Report activities
+        const reportActivities = repArr.map(r => {
+          const assetName = r.assetId?.name || "Asset";
+          const employeeName = r.employeeId?.name || "Employee";
+          return {
+            id: `rep-${r._id}`,
+            type: "report",
+            text: `Damage reported on ${assetName} by ${employeeName} (${r.status})`,
+            date: new Date(r.createdAt),
+          };
+        });
+
+        // Build activity feed: sort all by most recent date
+        const feed = [
+          ...assignmentActivities,
+          ...requestActivities,
+          ...reportActivities
+        ]
           .sort((a, b) => b.date - a.date)
-          .slice(0, 8);
+          .slice(0, 5);
 
         setActivity(feed);
         setRoles(Array.isArray(rolesData) ? rolesData : []);
@@ -332,12 +375,6 @@ function AdminDashboard() {
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-900">Recent Activity</h2>
-            <button
-              onClick={() => navigate("/admin/assignments")}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-            >
-              View all →
-            </button>
           </div>
 
           <div className="mt-5 space-y-1">
@@ -348,9 +385,19 @@ function AdminDashboard() {
                 <div key={item.id} className="flex items-start gap-3 rounded-2xl px-3 py-3 hover:bg-slate-50">
                   <span
                     className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold
-                      ${item.type === "return" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}
+                      ${
+                        item.type === "return" ? "bg-green-100 text-green-700" :
+                        item.type === "assign" ? "bg-blue-100 text-blue-700" :
+                        item.type === "request" ? "bg-amber-100 text-amber-700" :
+                        "bg-red-100 text-red-700"
+                      }`}
                   >
-                    {item.type === "return" ? "↩" : "↗"}
+                    {
+                      item.type === "return" ? "↩" :
+                      item.type === "assign" ? "↗" :
+                      item.type === "request" ? "✉" :
+                      "⚠"
+                    }
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm text-slate-800">{item.text}</p>

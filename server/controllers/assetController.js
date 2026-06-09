@@ -1,4 +1,5 @@
 import Asset from '../models/Asset.js';
+import Assignment from '../models/Assignment.js';
 
 export const createAsset = async (req, res) => {
     try {
@@ -48,25 +49,65 @@ export const getAssets = async (req, res) => {
                 {assetId:{$regex: search, $options:'i'}},
             ];
         }
-        //pagination
+        
+        let assets;
+        let total = 0;
+        let pageNum = 1;
+        let limitNum = 10;
+
         if (page || limit) {
-            const pageNum = parseInt(page) || 1;
-            const limitNum = parseInt(limit) || 10;
+            pageNum = parseInt(page) || 1;
+            limitNum = parseInt(limit) || 10;
             const skip = (pageNum - 1) * limitNum;
-            const total = await Asset.countDocuments(query);
-            const assets = await Asset.find(query)
+            total = await Asset.countDocuments(query);
+            assets = await Asset.find(query)
                 .sort({createdAt:-1})
                 .skip(skip)
                 .limit(limitNum);
+        } else {
+            assets = await Asset.find(query).sort({createdAt:-1});
+        }
+
+        // Find active assignments for these assets
+        const assetIds = assets.map(a => a._id);
+        const activeAssignments = await Assignment.find({
+            assetId: { $in: assetIds },
+            returnedDate: null,
+            isDeleted: false
+        }).populate({
+            path: 'employeeId',
+            select: 'name department userId',
+            populate: {
+                path: 'userId',
+                select: 'userId email'
+            }
+        });
+
+        const assignmentMap = {};
+        activeAssignments.forEach(assign => {
+            if (assign.assetId && assign.employeeId) {
+                assignmentMap[assign.assetId.toString()] = assign.employeeId;
+            }
+        });
+
+        const assetsWithAssignments = assets.map(asset => {
+            const assetObj = asset.toObject();
+            assetObj.assignedTo = assignmentMap[asset._id.toString()] || null;
+            return assetObj;
+        });
+
+        if (page || limit) {
             res.json({
-                assets,
-                pagination: {total, pages: Math.ceil(total / limitNum),
-                    currentPage: pageNum,limit: limitNum
+                assets: assetsWithAssignments,
+                pagination: {
+                    total,
+                    pages: Math.ceil(total / limitNum),
+                    currentPage: pageNum,
+                    limit: limitNum
                 }
             });
         } else {
-            const assets = await Asset.find(query).sort({createdAt:-1});
-            res.json(assets);
+            res.json(assetsWithAssignments);
         }
     }
     catch(e){
@@ -80,7 +121,21 @@ export const getAssetById = async (req, res) => {
         const asset = await Asset.findById(req.params.id);
 
         if (asset) {
-            res.json(asset);
+            const activeAssignment = await Assignment.findOne({
+                assetId: asset._id,
+                returnedDate: null,
+                isDeleted: false
+            }).populate({
+                path: 'employeeId',
+                select: 'name department userId',
+                populate: {
+                    path: 'userId',
+                    select: 'userId email'
+                }
+            });
+            const assetObj = asset.toObject();
+            assetObj.assignedTo = activeAssignment ? activeAssignment.employeeId : null;
+            res.json(assetObj);
         } else {
             res.status(404).json({ message: 'Asset not found' });
         }
@@ -102,7 +157,22 @@ export const updateAsset = async (req, res) => {
             asset.status = req.body.status || asset.status;
 
             const updatedAsset = await asset.save();
-            res.json(updatedAsset);
+
+            const activeAssignment = await Assignment.findOne({
+                assetId: updatedAsset._id,
+                returnedDate: null,
+                isDeleted: false
+            }).populate({
+                path: 'employeeId',
+                select: 'name department userId',
+                populate: {
+                    path: 'userId',
+                    select: 'userId email'
+                }
+            });
+            const assetObj = updatedAsset.toObject();
+            assetObj.assignedTo = activeAssignment ? activeAssignment.employeeId : null;
+            res.json(assetObj);
         } else {
             res.status(404).json({ message: 'Asset not found' });
         }

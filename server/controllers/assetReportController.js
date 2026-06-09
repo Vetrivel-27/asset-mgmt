@@ -19,9 +19,9 @@ export const createReport = async(req, res)=>{
             assetId, employeeId: employee._id, type, message
         });
 
-        // If it's damage, automatically set asset status to maintenance
+        // If it's damage, automatically set asset status to damage
         if (type === 'damage') {
-            asset.status = 'maintenance';
+            asset.status = 'damage';
             await asset.save();
         }
 
@@ -84,7 +84,7 @@ export const updateReportStatus = async(req, res)=>{
         // If resolved, set asset back to available
         if(status==='resolved'){
             const asset = await Asset.findById(report.assetId);
-            if(asset && asset.status ==="maintenance"){
+            if(asset && (asset.status ==="maintenance" || asset.status === "damage" || asset.status === "repair")){
                 asset.status = "available";
                 await asset.save();
             }
