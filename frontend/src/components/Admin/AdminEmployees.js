@@ -276,7 +276,7 @@ function AdminEmployees() {
               <input
                 value={formEmployeeId}
                 onChange={(e) => setFormEmployeeId(e.target.value)}
-                placeholder="e.g., EMP-001"
+                placeholder="e.g., 001"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
               />

@@ -59,8 +59,7 @@ function EmployeeReport() {
 
   const reportOptions = [
     { value: "damage", label: "Damaged" },
-    // { value: "request_return", label: "Request early return" },
-    { value: "missing", label: "Missing / Lost" },
+    { value: "lost", label: "Missing / Lost" },
     { value: "other", label: "Other issue" },
   ];
 
@@ -237,14 +236,14 @@ function EmployeeReport() {
                   type="submit"
                   className="w-full rounded-3xl bg-gradient-to-r from-yellow-400 to-yellow-300 px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:from-yellow-500 hover:to-yellow-400 transition"
                 >
-                  Send cosmic report
+                  Send your report
                 </button>
 
                 {sent && (
                   <div className="rounded-3xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-700">
                     <p className="font-semibold">Report sent!</p>
                     <p>
-                      Your signal has been delivered and the admin team will
+                      Your report has been delivered and the admin team will
                       review it shortly.
                     </p>
                   </div>

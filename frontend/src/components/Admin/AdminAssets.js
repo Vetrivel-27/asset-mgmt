@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 
@@ -571,8 +572,8 @@ function AdminAssets() {
       </div>
 
       {/* Edit Asset Modal */}
-      {editModalOpen && editAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      {editModalOpen && editAsset && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
             {/* Header */}
             <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
@@ -707,12 +708,13 @@ function AdminAssets() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteModalOpen && assetToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      {deleteModalOpen && assetToDelete && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-fade-in">
             {/* Header */}
             <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
@@ -777,7 +779,8 @@ function AdminAssets() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

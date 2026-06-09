@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 
 function AdminReports() {
@@ -6,6 +7,7 @@ function AdminReports() {
   const [assignments, setAssignments] = useState([]);
   const [filedReports, setFiledReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllReportsModal, setShowAllReportsModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -146,6 +148,7 @@ function AdminReports() {
         </div>
 
         <div
+          onClick={() => setShowAllReportsModal(true)}
           className="p-6 bg-white rounded-xl shadow-md cursor-pointer
                     transition-all duration-300 ease-in-out
                     hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm flex flex-col"
@@ -289,6 +292,57 @@ function AdminReports() {
           </div>
         </div> */}
       </div>
+
+      {/* Modal for All Reports */}
+      {showAllReportsModal && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+              <h3 className="text-2xl font-bold text-slate-900">All Employee Reports</h3>
+              <button 
+                onClick={() => setShowAllReportsModal(false)}
+                className="text-slate-500 hover:text-slate-900 transition-colors"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              {filedReports.map((r) => (
+                <div
+                  key={r._id}
+                  className="flex items-start justify-between border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 p-2 rounded-xl transition-colors"
+                >
+                  <div className="min-w-0 pr-4">
+                    <div className="text-base font-semibold text-slate-900">
+                      {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
+                    </div>
+                    <div className="text-sm text-slate-700 mt-1">
+                      <span className="font-semibold text-slate-900">{r.employeeId?.name || "Unknown user"}</span> reported: 
+                      <span className="italic ml-1">"{r.message}"</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-2">
+                      Filed on: {new Date(r.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : r.type === 'lost' ? 'bg-purple-100 text-purple-700' : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {r.type}
+                    </div>
+                    <div className={`text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.status === 'open' ? 'bg-blue-100 text-blue-700' : r.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                      {r.status}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filedReports.length === 0 && (
+                <div className="text-center text-slate-500 py-12">No reports have been filed yet.</div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

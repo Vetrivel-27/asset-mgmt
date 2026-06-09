@@ -153,14 +153,14 @@ function DashboardLayout() {
             </div>
 
             {/* Nav */}
-            <nav className="flex-1 space-y-1 overflow-y-auto">
+            <nav className="flex-1 space-y-1 overflow-y-auto border-b">
               {navItems.map(({ to, end, label }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   className={({ isActive }) =>
-                    `block rounded-2xl px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap
+                    `block rounded-2xl px-4 py-3 text-sm font-medium transition-colors border-b whitespace-nowrap
                      ${isActive
                        ? "bg-yellow-400 text-slate-900"
                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`
@@ -188,7 +188,7 @@ function DashboardLayout() {
         <div className="flex flex-1 flex-col overflow-hidden">
 
           {/* Top bar */}
-          <header className="flex flex-shrink-0 items-center gap-4 bg-white px-6 py-4 shadow-sm">
+          <header className="flex flex-shrink-0 items-center gap-4 bg-yellow-400 px-6 py-4 shadow-sm">
             <button
               onClick={() => setOpen(prev => !prev)}
               className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-slate-100"
@@ -198,7 +198,7 @@ function DashboardLayout() {
             </button>
 
             <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-widest text-black">
                 {adminUser ? "Admin Panel" : "Employee Portal"}
               </p>
               <h1 className="text-lg font-semibold leading-tight text-slate-900">
