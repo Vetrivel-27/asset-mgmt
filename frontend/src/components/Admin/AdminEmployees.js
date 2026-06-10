@@ -27,6 +27,7 @@ function AdminEmployees() {
   const [formEmail, setFormEmail] = useState("");
   const [formEmployeeId, setFormEmployeeId] = useState("");
   const [formDepartment, setFormDepartment] = useState("");
+  const [formCustomDepartment, setFormCustomDepartment] = useState("");
   const [formRoleId, setFormRoleId] = useState("");
   const [roles, setRoles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +41,13 @@ function AdminEmployees() {
   const [editEmail, setEditEmail] = useState("");
   const [editEmployeeId, setEditEmployeeId] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
+  const [editCustomDepartment, setEditCustomDepartment] = useState("");
   const [editRoleId, setEditRoleId] = useState("");
+
+  const dbDepartments = useMemo(() => {
+    const deps = new Set(employees.map((emp) => emp.department).filter(Boolean));
+    return Array.from(deps).sort();
+  }, [employees]);
 
   const pageSize = 8;
 
@@ -129,6 +136,7 @@ function AdminEmployees() {
     setFormEmail("");
     setFormEmployeeId("");
     setFormDepartment("");
+    setFormCustomDepartment("");
     setFormRoleId(
       roles.find((role) => role.name === "employee")?._id ||
         roles[0]?._id ||
@@ -140,11 +148,13 @@ function AdminEmployees() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const finalDepartment = formDepartment === "CUSTOM" ? formCustomDepartment.trim() : formDepartment.trim();
+
     if (
       !formName.trim() ||
       !formEmail.trim() ||
       !formEmployeeId.trim() ||
-      !formDepartment.trim() ||
+      !finalDepartment ||
       !formRoleId
     ) {
       setSubmitError("All fields are required.");
@@ -160,7 +170,7 @@ function AdminEmployees() {
         name: formName.trim(),
         email: formEmail.trim(),
         employeeId: formEmployeeId.trim(),
-        department: formDepartment.trim(),
+        department: finalDepartment,
         roleId: formRoleId,
       };
 
@@ -201,28 +211,32 @@ function AdminEmployees() {
     setEditEmail(employee.email || "");
     setEditEmployeeId(employee.employeeId || "");
     setEditDepartment(employee.department || "");
+    setEditCustomDepartment("");
     setEditRoleId(employee.roleId || "");
     setEditModalOpen(true);
   };
 
   const hasEmployeeChanges = useMemo(() => {
     if (!editEmployee) return false;
+    const finalEditDept = editDepartment === "CUSTOM" ? editCustomDepartment.trim() : editDepartment.trim();
     return (
       editName.trim() !== (editEmployee.name || "") ||
       editEmail.trim() !== (editEmployee.email || "") ||
       editEmployeeId.trim() !== (editEmployee.employeeId || "") ||
-      editDepartment.trim() !== (editEmployee.department || "") ||
+      finalEditDept !== (editEmployee.department || "") ||
       editRoleId !== (editEmployee.roleId || "")
     );
-  }, [editEmployee, editName, editEmail, editEmployeeId, editDepartment, editRoleId]);
+  }, [editEmployee, editName, editEmail, editEmployeeId, editDepartment, editCustomDepartment, editRoleId]);
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    const finalEditDept = editDepartment === "CUSTOM" ? editCustomDepartment.trim() : editDepartment.trim();
+
     if (
       !editName.trim() ||
       !editEmail.trim() ||
       !editEmployeeId.trim() ||
-      !editDepartment.trim() ||
+      !finalEditDept ||
       !editRoleId
     ) {
       setSubmitError("All fields are required.");
@@ -238,7 +252,7 @@ function AdminEmployees() {
         name: editName.trim(),
         email: editEmail.trim(),
         employeeId: editEmployeeId.trim(),
-        department: editDepartment.trim(),
+        department: finalEditDept,
         roleId: editRoleId,
       };
 
@@ -372,13 +386,28 @@ function AdminEmployees() {
               <span className="text-sm font-medium text-slate-700">
                 Department
               </span>
-              <input
+              <select
                 value={formDepartment}
                 onChange={(e) => setFormDepartment(e.target.value)}
-                placeholder="e.g., IT, HR, Finance"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
-              />
+              >
+                <option value="">Select Department</option>
+                {dbDepartments.map((dep) => (
+                  <option key={dep} value={dep}>{dep}</option>
+                ))}
+                <option value="CUSTOM">Custom department...</option>
+              </select>
+              {formDepartment === "CUSTOM" && (
+                <input
+                  required
+                  value={formCustomDepartment}
+                  onChange={(e) => setFormCustomDepartment(e.target.value)}
+                  placeholder="e.g., Data Science"
+                  disabled={submitting}
+                  className="mt-3 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                />
+              )}
             </label>
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Role</span>
@@ -753,14 +782,31 @@ function AdminEmployees() {
                   <span className="text-sm font-medium text-slate-700">
                     Department
                   </span>
-                  <input
-                    required
+                  <select
                     value={editDepartment}
                     onChange={(e) => setEditDepartment(e.target.value)}
-                    placeholder="e.g., IT, HR, Finance"
                     disabled={submitting}
                     className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
-                  />
+                  >
+                    <option value="">Select Department</option>
+                    {dbDepartments.map((dep) => (
+                      <option key={dep} value={dep}>{dep}</option>
+                    ))}
+                    {!dbDepartments.includes(editDepartment) && editDepartment !== "CUSTOM" && editDepartment !== "" && (
+                      <option value={editDepartment}>{editDepartment}</option>
+                    )}
+                    <option value="CUSTOM">Custom department...</option>
+                  </select>
+                  {editDepartment === "CUSTOM" && (
+                    <input
+                      required
+                      value={editCustomDepartment}
+                      onChange={(e) => setEditCustomDepartment(e.target.value)}
+                      placeholder="e.g., Data Science"
+                      disabled={submitting}
+                      className="mt-3 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                    />
+                  )}
                 </label>
 
                 <label className="block">

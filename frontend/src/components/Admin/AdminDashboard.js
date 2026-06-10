@@ -134,26 +134,28 @@ function AddAssetForm({ onSuccess, onCancel }) {
 }
 
 // ── Register-Employee mini form ──────────────────────────────────────────────
-function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
+function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }) {
   const [name, setName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
   const [roleId, setRoleId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !employeeId.trim() || !email.trim()) {
-      setError("Name, ID, and email are required."); return;
+    const finalDepartment = department === "CUSTOM" ? customDepartment.trim() : department.trim();
+    if (!name.trim() || !employeeId.trim() || !email.trim() || !finalDepartment) {
+      setError("Name, ID, email, and department are required."); return;
     }
     setSubmitting(true); setError("");
     try {
       const res = await fetch(`${API_URL}/api/employees`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), employeeId: employeeId.trim(), email: email.trim(), department: department.trim(), roleId }),
+        body: JSON.stringify({ name: name.trim(), employeeId: employeeId.trim(), email: email.trim(), department: finalDepartment, roleId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to register employee.");
@@ -163,6 +165,7 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
       setEmployeeId("");
       setEmail("");
       setDepartment("");
+      setCustomDepartment("");
       setRoleId("");
 
       onSuccess(`Employee "${data.name || name}" registered! A welcome email has been sent.`);
@@ -175,6 +178,7 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
     setEmployeeId("");
     setEmail("");
     setDepartment("");
+    setCustomDepartment("");
     setRoleId("");
     setError("");
     onCancel();
@@ -199,7 +203,14 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-600">Department</span>
-          <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Engineering" disabled={submitting} className={`mt-1 ${inputCls}`} />
+          <select value={department} onChange={e => setDepartment(e.target.value)} disabled={submitting} className={`mt-1 ${inputCls}`}>
+            <option value="">Select Department</option>
+            {dbDepartments.map(dep => <option key={dep} value={dep}>{dep}</option>)}
+            <option value="CUSTOM">Custom department...</option>
+          </select>
+          {department === "CUSTOM" && (
+            <input value={customDepartment} onChange={e => setCustomDepartment(e.target.value)} placeholder="e.g. Data Science" disabled={submitting} className={`mt-2 ${inputCls}`} />
+          )}
         </label>
         <label className="block sm:col-span-2">
           <span className="text-xs font-medium text-slate-600">Role</span>
@@ -229,6 +240,7 @@ function AdminDashboard() {
   const [stats, setStats] = useState({ assets: 0, employees: 0, activeAssignments: 0 });
   const [activity, setActivity] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [dbDepartments, setDbDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Quick-action panel state
@@ -332,6 +344,10 @@ function AdminDashboard() {
         ]
           .sort((a, b) => b.date - a.date)
           .slice(0, 5);
+
+        // Compute departments
+        const deps = new Set(empArr.map(e => e.department).filter(Boolean));
+        setDbDepartments(Array.from(deps).sort());
 
         setActivity(feed);
         setRoles(Array.isArray(rolesData) ? rolesData : []);
@@ -474,6 +490,7 @@ function AdminDashboard() {
               <QuickPanel open={activePanel === "employee"}>
                 <RegisterEmployeeForm
                   roles={roles}
+                  dbDepartments={dbDepartments}
                   onSuccess={(msg) => { showToast(msg); togglePanel(null); }}
                   onCancel={() => togglePanel(null)}
                 />
