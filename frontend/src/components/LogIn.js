@@ -24,7 +24,9 @@ function LogIn({ onLogin }) {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || data.message || "Invalid email or password");
+        throw new Error(
+          data.error || data.message || "Invalid email or password",
+        );
       }
 
       const roleName = data.user?.roleName?.toLowerCase();
@@ -35,13 +37,19 @@ function LogIn({ onLogin }) {
       sessionStorage.setItem("authToken", data.token);
       sessionStorage.setItem("userRole", roleName);
       sessionStorage.setItem("userEmail", data.user.email);
-      sessionStorage.setItem("userPermissions", JSON.stringify(data.user.permissions || []));
-      sessionStorage.setItem("userName", data.user.userId || data.user.email || "User");
+      sessionStorage.setItem(
+        "userPermissions",
+        JSON.stringify(data.user.permissions || []),
+      );
+      sessionStorage.setItem(
+        "userName",
+        data.user.userId || data.user.email || "User",
+      );
 
       if (roleName !== "admin") {
         sessionStorage.setItem("employeeEmail", data.user.email);
       }
-      
+
       navigate("/dashboard");
 
       if (onLogin) onLogin({ ...data.user, role: roleName, token: data.token });
@@ -56,7 +64,7 @@ function LogIn({ onLogin }) {
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-[#d9dddc]">
       <div className="w-full max-w-md bg-white rounded-tl-[150px] rounded-br-[150px] rounded-tr-none rounded-bl-none px-8 py-10 pb-24 shadow-[0_24px_60px_rgba(0,0,0,0.18)] ">
         <div className="flex justify-center mb-6">
-          <img src="/logo192.png" alt="logo" className="h-16 w-auto" />
+          <img src="/esab-logo.png" alt="logo" className="h-16 w-auto" />
         </div>
 
         <h1 className="text-3xl font-semibold text-center text-slate-900">

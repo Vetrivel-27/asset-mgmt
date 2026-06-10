@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
+import { createPortal } from "react-dom";
 import { hasPermission } from "../../permissions";
 
 function EmployeeHistory() {
@@ -355,8 +356,8 @@ function EmployeeHistory() {
       </div>
 
       {/* Slide-out Sidebar Drawer for Log Details */}
-      {sidebarOpen && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+      {sidebarOpen && selectedRecord && createPortal(
+        <div className="fixed inset-0 z-[100] flex justify-end">
           {/* Backdrop */}
           <div
             onClick={() => {
@@ -367,7 +368,7 @@ function EmployeeHistory() {
           ></div>
 
           {/* Drawer Body */}
-          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 border-l border-slate-200">
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 border-l border-black">
             {/* Header */}
             <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
               <div>
@@ -546,7 +547,8 @@ function EmployeeHistory() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 
@@ -31,6 +32,16 @@ function AdminEmployees() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+
+  // Edit Employee States
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editEmployee, setEditEmployee] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editEmployeeId, setEditEmployeeId] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editRoleId, setEditRoleId] = useState("");
+
   const pageSize = 8;
 
   const avatarColors = [
@@ -184,8 +195,85 @@ function AdminEmployees() {
     }
   };
 
+  const handleOpenEdit = (employee) => {
+    setEditEmployee(employee);
+    setEditName(employee.name || "");
+    setEditEmail(employee.email || "");
+    setEditEmployeeId(employee.employeeId || "");
+    setEditDepartment(employee.department || "");
+    setEditRoleId(employee.roleId || "");
+    setEditModalOpen(true);
+  };
+
+  const hasEmployeeChanges = useMemo(() => {
+    if (!editEmployee) return false;
+    return (
+      editName.trim() !== (editEmployee.name || "") ||
+      editEmail.trim() !== (editEmployee.email || "") ||
+      editEmployeeId.trim() !== (editEmployee.employeeId || "") ||
+      editDepartment.trim() !== (editEmployee.department || "") ||
+      editRoleId !== (editEmployee.roleId || "")
+    );
+  }, [editEmployee, editName, editEmail, editEmployeeId, editDepartment, editRoleId]);
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (
+      !editName.trim() ||
+      !editEmail.trim() ||
+      !editEmployeeId.trim() ||
+      !editDepartment.trim() ||
+      !editRoleId
+    ) {
+      setSubmitError("All fields are required.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const payload = {
+        name: editName.trim(),
+        email: editEmail.trim(),
+        employeeId: editEmployeeId.trim(),
+        department: editDepartment.trim(),
+        roleId: editRoleId,
+      };
+
+      const res = await fetch(`${API_URL}/api/employees/${editEmployee._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.message || errorData.error || "Failed to update employee.",
+        );
+      }
+
+      const updated = normalizeEmployee(await res.json());
+      setEmployees((prev) =>
+        prev.map((emp) => (emp._id === updated._id ? updated : emp)),
+      );
+      setEditModalOpen(false);
+      setEditEmployee(null);
+      setSubmitSuccess(`Employee ${updated.name} updated successfully!`);
+      setTimeout(() => setSubmitSuccess(""), 3000);
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      setSubmitError(error.message || "Failed to update employee.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDelete = async (employeeId) => {
-    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+    if (!window.confirm("Are you sure you want to delete this employee?"))
+      return;
     try {
       const res = await fetch(`${API_URL}/api/employees/${employeeId}`, {
         method: "DELETE",
@@ -196,8 +284,7 @@ function AdminEmployees() {
         throw new Error(data.message || "Failed to delete employee");
       }
       setEmployees(employees.filter((item) => item._id !== employeeId));
-    }
-    catch (error) {
+    } catch (error) {
       console.error("Delete failed:", error);
       alert(error.message || "Failed to delete employee.");
     }
@@ -276,7 +363,7 @@ function AdminEmployees() {
               <input
                 value={formEmployeeId}
                 onChange={(e) => setFormEmployeeId(e.target.value)}
-                placeholder="e.g., 001"
+                placeholder="e.g., EMP-001"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
               />
@@ -390,8 +477,32 @@ function AdminEmployees() {
               {pageItems.map((employee) => (
                 <div
                   key={employee._id || employee.employeeId || employee.email}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm min-w-0"
+                  className="group relative rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm min-w-0 transition hover:shadow-md"
                 >
+                  {/* Grid Edit Button on Hover */}
+                  <CanAccess permission="manage_users">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(employee)}
+                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl bg-yellow-100 p-2 text-xs font-bold text-yellow-800 hover:bg-yellow-200 shadow-sm"
+                      title="Edit Employee"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                      </svg>
+                    </button>
+                  </CanAccess>
+
                   <div
                     className={`mx-auto h-16 w-16 rounded-full ${getAvatarColor(employee)} flex items-center justify-center text-white font-semibold text-xl`}
                   >
@@ -404,19 +515,34 @@ function AdminEmployees() {
                       : "—"}
                   </div>
                   <div className="mt-3 min-w-0 text-center">
-                    <div className="text-sm font-semibold text-slate-900 truncate" title={employee.name || ""}>
+                    <div
+                      className="text-sm font-semibold text-slate-900 truncate"
+                      title={employee.name || ""}
+                    >
                       {employee.name || "—"}
                     </div>
-                    <div className="text-xs text-slate-500 truncate" title={employee.department || ""}>
+                    <div
+                      className="text-xs text-slate-500 truncate"
+                      title={employee.department || ""}
+                    >
                       {employee.department || "—"}
                     </div>
-                    <div className="text-xs capitalize text-slate-500 truncate" title={employee.roleName || ""}>
+                    <div
+                      className="text-xs capitalize text-slate-500 truncate"
+                      title={employee.roleName || ""}
+                    >
                       {employee.roleName || "—"}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1 truncate" title={employee.employeeId || ""}>
+                    <div
+                      className="text-xs text-slate-400 mt-1 truncate"
+                      title={employee.employeeId || ""}
+                    >
                       ID: {employee.employeeId || "—"}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1 truncate" title={employee.email || ""}>
+                    <div
+                      className="text-xs text-slate-400 mt-1 truncate"
+                      title={employee.email || ""}
+                    >
                       {employee.email || "—"}
                     </div>
                   </div>
@@ -472,15 +598,25 @@ function AdminEmployees() {
                       </td>
                       <td className="px-4 py-4 text-right text-sm">
                         <CanAccess permission="manage_users">
-                          {employee.email?.toLowerCase() !== "admin@test.com" && (
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => handleDelete(employee._id)}
-                              className="rounded-2xl bg-red-100 px-3 py-2 text-red-700 transition hover:bg-red-200"
+                              onClick={() => handleOpenEdit(employee)}
+                              className="rounded-xl bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-800 hover:bg-yellow-200 transition"
                             >
-                              Delete
+                              Edit
                             </button>
-                          )}
+                            {employee.email?.toLowerCase() !==
+                              "admin@test.com" && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(employee._id)}
+                                className="rounded-xl bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-200"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         </CanAccess>
                       </td>
                     </tr>
@@ -510,6 +646,186 @@ function AdminEmployees() {
           </div>
         )}
       </div>
+
+      {/* Edit Employee Modal */}
+      {editModalOpen &&
+        editEmployee &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+              {/* Header */}
+              <div className="bg-black px-6 py-5 flex items-center justify-between text-white">
+                <div>
+                  <h3 className="font-bold text-lg">Edit Employee</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Modify profile details and user permissions
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditModalOpen(false);
+                    setEditEmployee(null);
+                    setSubmitError("");
+                  }}
+                  className="text-slate-400 hover:text-white rounded-full p-1 transition"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                {submitError && (
+                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700">
+                    {submitError}
+                  </div>
+                )}
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    Name
+                  </span>
+                  <input
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Employee full name"
+                    disabled={submitting}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    Email
+                  </span>
+                  {editEmployee.email?.toLowerCase() === "admin@test.com" ? (
+                    <input
+                      disabled
+                      value={editEmail}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-400 px-4 py-2 text-sm cursor-not-allowed outline-none"
+                    />
+                  ) : (
+                    <input
+                      type="email"
+                      required
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="employee@example.com"
+                      disabled={submitting}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                    />
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    Employee ID
+                  </span>
+                  {editEmployee.email?.toLowerCase() === "admin@test.com" ? (
+                    <input
+                      disabled
+                      value={editEmployeeId}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-400 px-4 py-2 text-sm cursor-not-allowed outline-none"
+                    />
+                  ) : (
+                    <input
+                      required
+                      value={editEmployeeId}
+                      onChange={(e) => setEditEmployeeId(e.target.value)}
+                      placeholder="e.g., EMP-001"
+                      disabled={submitting}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                    />
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    Department
+                  </span>
+                  <input
+                    required
+                    value={editDepartment}
+                    onChange={(e) => setEditDepartment(e.target.value)}
+                    placeholder="e.g., IT, HR, Finance"
+                    disabled={submitting}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    Role
+                  </span>
+                  {editEmployee.email?.toLowerCase() === "admin@test.com" ? (
+                    <div className="mt-2">
+                      <select
+                        disabled
+                        value={editRoleId}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-400 px-4 py-2.5 text-sm cursor-not-allowed outline-none"
+                      >
+                        <option value={editRoleId}>
+                          {editEmployee.roleName || "Admin"}
+                        </option>
+                      </select>
+                      <p className="mt-1 text-[10px] text-red-400 font-medium">
+                        Seeded Admin role cannot be demoted directly.
+                      </p>
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      value={editRoleId}
+                      onChange={(e) => setEditRoleId(e.target.value)}
+                      disabled={submitting || roles.length === 0}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm capitalize outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                    >
+                      <option value="">Select role</option>
+                      {roles.map((role) => (
+                        <option key={role._id} value={role._id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting || !hasEmployeeChanges}
+                    className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditModalOpen(false);
+                      setEditEmployee(null);
+                      setSubmitError("");
+                    }}
+                    disabled={submitting}
+                    className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

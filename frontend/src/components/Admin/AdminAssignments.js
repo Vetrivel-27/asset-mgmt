@@ -6,7 +6,7 @@ function AdminAssignments() {
   const [assignments, setAssignments] = useState([]);
   const [assets, setAssets] = useState([]);
   const [employees, setEmployees] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [loadingFormOptions, setLoadingFormOptions] = useState(false);
@@ -48,7 +48,7 @@ function AdminAssignments() {
       const headers = { Authorization: `Bearer ${token}` };
       const [assetsRes, employeesRes] = await Promise.all([
         fetch(`${API_URL}/api/assets`, { headers }),
-        fetch(`${API_URL}/api/employees`, { headers })
+        fetch(`${API_URL}/api/employees`, { headers }),
       ]);
       const assetsData = await assetsRes.json();
       const employeesData = await employeesRes.json();
@@ -83,6 +83,15 @@ function AdminAssignments() {
       setSubmitError("Asset and Employee are required fields.");
       return;
     }
+    if (tentativeReturnDate) {
+      const selectedDate = new Date(tentativeReturnDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        setSubmitError("Return date cannot be in the past.");
+        return;
+      }
+    }
 
     setSubmitting(true);
     setSubmitError("");
@@ -94,19 +103,21 @@ function AdminAssignments() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           assetId: selectedAssetId,
           employeeId: selectedEmployeeId,
-          tentativeReturnDate: tentativeReturnDate || null
-        })
+          tentativeReturnDate: tentativeReturnDate || null,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Failed to assign asset.");
+        throw new Error(
+          data.message || data.error || "Failed to assign asset.",
+        );
       }
 
       setSubmitSuccess("Asset assigned successfully!");
@@ -122,7 +133,9 @@ function AdminAssignments() {
   };
 
   // Only show assets that are 'available' for assignment
-  const availableAssets = assets.filter((asset) => asset.status === "available");
+  const availableAssets = assets.filter(
+    (asset) => asset.status === "available",
+  );
 
   return (
     <div className="space-y-6">
@@ -165,11 +178,15 @@ function AdminAssignments() {
           )}
 
           {loadingFormOptions ? (
-            <div className="mt-6 text-sm text-slate-500">Loading form options...</div>
+            <div className="mt-6 text-sm text-slate-500">
+              Loading form options...
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Select Asset</span>
+                <span className="text-sm font-medium text-slate-700">
+                  Select Asset
+                </span>
                 <select
                   value={selectedAssetId}
                   onChange={(e) => setSelectedAssetId(e.target.value)}
@@ -186,7 +203,9 @@ function AdminAssignments() {
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Assign To (Employee)</span>
+                <span className="text-sm font-medium text-slate-700">
+                  Assign To (Employee)
+                </span>
                 <select
                   value={selectedEmployeeId}
                   onChange={(e) => setSelectedEmployeeId(e.target.value)}
@@ -196,16 +215,20 @@ function AdminAssignments() {
                   <option value="">Select employee</option>
                   {employees.map((emp) => (
                     <option key={emp._id} value={emp._id}>
-                      {emp.name} ({emp.employeeId || emp.userId?.userId || "No ID"})
+                      {emp.name} (
+                      {emp.employeeId || emp.userId?.userId || "No ID"})
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Tentative Return Date (Optional)</span>
+                <span className="text-sm font-medium text-slate-700">
+                  Tentative Return Date (Optional)
+                </span>
                 <input
                   type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={tentativeReturnDate}
                   onChange={(e) => setTentativeReturnDate(e.target.value)}
                   disabled={submitting}
@@ -268,14 +291,24 @@ function AdminAssignments() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {assignments.map((assignment) => {
-                  const asset = typeof assignment.assetId === "object" ? assignment.assetId : null;
-                  const employee = typeof assignment.employeeId === "object" ? assignment.employeeId : null;
-                  
-                  const assetName = asset ? asset.name : (assignment.assetName || "—");
+                  const asset =
+                    typeof assignment.assetId === "object"
+                      ? assignment.assetId
+                      : null;
+                  const employee =
+                    typeof assignment.employeeId === "object"
+                      ? assignment.employeeId
+                      : null;
+
+                  const assetName = asset
+                    ? asset.name
+                    : assignment.assetName || "—";
                   const assetCode = asset ? asset.assetId : "";
-                  const employeeName = employee ? employee.name : (assignment.assignedTo || "—");
+                  const employeeName = employee
+                    ? employee.name
+                    : assignment.assignedTo || "—";
                   const department = employee ? employee.department : "";
-                  
+
                   const isReturned = !!assignment.returnedDate;
                   const dueDate = assignment.tentativeReturnDate;
 
@@ -289,15 +322,29 @@ function AdminAssignments() {
                   return (
                     <tr key={assignment._id || assignment.id}>
                       <td className="px-4 py-4 text-sm">
-                        <div className="font-semibold text-slate-900">{assetName}</div>
-                        {assetCode && <div className="text-xs text-slate-500">ID: {assetCode}</div>}
+                        <div className="font-semibold text-slate-900">
+                          {assetName}
+                        </div>
+                        {assetCode && (
+                          <div className="text-xs text-slate-500">
+                            ID: {assetCode}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        <div className="font-medium text-slate-900">{employeeName}</div>
-                        {department && <div className="text-xs text-slate-500">{department}</div>}
+                        <div className="font-medium text-slate-900">
+                          {employeeName}
+                        </div>
+                        {department && (
+                          <div className="text-xs text-slate-500">
+                            {department}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
+                        >
                           {statusText}
                         </span>
                       </td>

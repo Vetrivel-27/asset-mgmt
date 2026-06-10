@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
+import { createPortal } from "react-dom";
 import CanAccess from "../CanAccess";
 
 const SEED_CATEGORIES = [
@@ -11,7 +11,7 @@ const SEED_CATEGORIES = [
   "Monitor",
   "Keyboard",
   "Mouse",
-  "Printer"
+  "Printer",
 ];
 
 function AdminAssets() {
@@ -30,7 +30,7 @@ function AdminAssets() {
   const [customCategory, setCustomCategory] = useState("");
   const [formAssetId, setFormAssetId] = useState("");
   const [formPurchaseDate, setFormPurchaseDate] = useState("");
-  
+
   // Form states (Edit Asset)
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editAsset, setEditAsset] = useState(null);
@@ -94,7 +94,7 @@ function AdminAssets() {
       const textMatches =
         asset.name.toLowerCase().includes(filter.toLowerCase()) ||
         asset.assetId.toLowerCase().includes(filter.toLowerCase());
-      
+
       const statusMatches =
         statusFilter === "all" ? true : asset.status === statusFilter;
 
@@ -120,10 +120,16 @@ function AdminAssets() {
   // Create new asset
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const finalCategory = formCategory === "CUSTOM_OPTION" ? customCategory.trim() : formCategory;
+    const finalCategory =
+      formCategory === "CUSTOM_OPTION" ? customCategory.trim() : formCategory;
 
     if (!formName.trim() || !finalCategory || !formPurchaseDate) {
       setSubmitError("Name, category, and purchase date are required.");
+      return;
+    }
+
+    if (new Date(formPurchaseDate) > new Date()) {
+      setSubmitError("Purchase date cannot be in the future.");
       return;
     }
 
@@ -150,7 +156,9 @@ function AdminAssets() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Failed to create asset.");
+        throw new Error(
+          data.message || data.error || "Failed to create asset.",
+        );
       }
 
       setAssets((prevAssets) => [data, ...prevAssets]);
@@ -181,7 +189,7 @@ function AdminAssets() {
       const token = sessionStorage.getItem("authToken");
       const res = await fetch(`${API_URL}/api/assets/${assetToDelete._id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         setAssets((prev) => prev.filter((a) => a._id !== assetToDelete._id));
@@ -204,11 +212,13 @@ function AdminAssets() {
   const openEditModal = (asset) => {
     setEditAsset(asset);
     setEditName(asset.name);
-    setEditType(categoriesList.includes(asset.type) ? asset.type : "CUSTOM_OPTION");
+    setEditType(
+      categoriesList.includes(asset.type) ? asset.type : "CUSTOM_OPTION",
+    );
     setEditCustomType(categoriesList.includes(asset.type) ? "" : asset.type);
     setEditAssetId(asset.assetId);
     setEditStatus(asset.status || "available");
-    
+
     // Format date string to YYYY-MM-DD
     if (asset.purchaseDate) {
       const dateObj = new Date(asset.purchaseDate);
@@ -219,17 +229,60 @@ function AdminAssets() {
     } else {
       setEditPurchaseDate("");
     }
-    
+
     setEditModalOpen(true);
   };
+
+  const hasAssetChanges = useMemo(() => {
+    if (!editAsset) return false;
+
+    let originalPurchaseDate = "";
+    if (editAsset.purchaseDate) {
+      const dateObj = new Date(editAsset.purchaseDate);
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const day = String(dateObj.getDate()).padStart(2, "0");
+      originalPurchaseDate = `${year}-${month}-${day}`;
+    }
+
+    const finalEditType =
+      editType === "CUSTOM_OPTION" ? editCustomType.trim() : editType;
+
+    return (
+      editName.trim() !== (editAsset.name || "") ||
+      finalEditType !== (editAsset.type || "") ||
+      editAssetId.trim() !== (editAsset.assetId || "") ||
+      editPurchaseDate !== originalPurchaseDate ||
+      editStatus !== (editAsset.status || "available")
+    );
+  }, [
+    editAsset,
+    editName,
+    editType,
+    editCustomType,
+    editAssetId,
+    editPurchaseDate,
+    editStatus,
+  ]);
 
   // Submit Edit Asset
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const finalType = editType === "CUSTOM_OPTION" ? editCustomType.trim() : editType;
+    const finalType =
+      editType === "CUSTOM_OPTION" ? editCustomType.trim() : editType;
 
-    if (!editName.trim() || !finalType || !editAssetId.trim() || !editPurchaseDate) {
+    if (
+      !editName.trim() ||
+      !finalType ||
+      !editAssetId.trim() ||
+      !editPurchaseDate
+    ) {
       setSubmitError("All fields are required for editing.");
+      return;
+    }
+
+    if (new Date(editPurchaseDate) > new Date()) {
+      setSubmitError("Purchase date cannot be in the future.");
       return;
     }
 
@@ -243,15 +296,15 @@ function AdminAssets() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: editName.trim(),
           type: finalType,
           assetId: editAssetId.trim(),
           purchaseDate: editPurchaseDate,
-          status: editStatus
-        })
+          status: editStatus,
+        }),
       });
 
       const data = await res.json();
@@ -276,9 +329,12 @@ function AdminAssets() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Assets Management</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Assets Management
+          </h2>
           <p className="text-sm text-slate-500">
-            Browse, search, edit, delete, and add new assets to the inventory catalog.
+            Browse, search, edit, delete, and add new assets to the inventory
+            catalog.
           </p>
         </div>
         <CanAccess permission="manage_asset">
@@ -309,17 +365,18 @@ function AdminAssets() {
       {/* Add New Asset Form */}
       {showForm && (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900">
-            Add New Asset
-          </h3>
+          <h3 className="text-lg font-bold text-slate-900">Add New Asset</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Enter the details below. Asset ID is optional and will be auto-generated based on category if left blank.
+            Enter the details below. Asset ID is optional and will be
+            auto-generated based on category if left blank.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Asset Name</span>
+                <span className="text-xs font-semibold text-slate-600">
+                  Asset Name
+                </span>
                 <input
                   required
                   value={formName}
@@ -331,7 +388,12 @@ function AdminAssets() {
               </label>
 
               <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Asset ID <span className="text-slate-400 font-normal">(Optional: Auto-generated)</span></span>
+                <span className="text-xs font-semibold text-slate-600">
+                  Asset ID{" "}
+                  <span className="text-slate-400 font-normal">
+                    (Optional: Auto-generated)
+                  </span>
+                </span>
                 <input
                   value={formAssetId}
                   onChange={(e) => setFormAssetId(e.target.value)}
@@ -342,7 +404,9 @@ function AdminAssets() {
               </label>
 
               <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Category</span>
+                <span className="text-xs font-semibold text-slate-600">
+                  Category
+                </span>
                 <select
                   required
                   value={formCategory}
@@ -356,13 +420,17 @@ function AdminAssets() {
                       {cat}
                     </option>
                   ))}
-                  <option value="CUSTOM_OPTION">Custom (Type new category...)</option>
+                  <option value="CUSTOM_OPTION">
+                    Custom (Type new category...)
+                  </option>
                 </select>
               </label>
 
               {formCategory === "CUSTOM_OPTION" && (
                 <label className="block">
-                  <span className="text-xs font-semibold text-slate-600">New Category Name</span>
+                  <span className="text-xs font-semibold text-slate-600">
+                    New Category Name
+                  </span>
                   <input
                     required
                     value={customCategory}
@@ -375,10 +443,13 @@ function AdminAssets() {
               )}
 
               <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Purchase Date</span>
+                <span className="text-xs font-semibold text-slate-600">
+                  Purchase Date
+                </span>
                 <input
                   required
                   type="date"
+                  max={new Date().toISOString().split("T")[0]}
                   value={formPurchaseDate}
                   onChange={(e) => setFormPurchaseDate(e.target.value)}
                   disabled={submitting}
@@ -424,7 +495,7 @@ function AdminAssets() {
             placeholder="Search assets by name or ID..."
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 md:max-w-md"
           />
-          
+
           {/* Status Filter Buttons */}
           <div className="flex flex-wrap gap-2">
             {[
@@ -432,7 +503,7 @@ function AdminAssets() {
               { id: "available", label: "Available" },
               { id: "assigned", label: "Assigned" },
               { id: "damage", label: "Damaged" },
-              { id: "repair", label: "Under Repair" }
+              { id: "repair", label: "Under Repair" },
             ].map((btn) => (
               <button
                 key={btn.id}
@@ -456,24 +527,42 @@ function AdminAssets() {
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Asset Name</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Asset ID</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Category</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Assigned To</th>
-                <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">Actions</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                  Asset Name
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                  Asset ID
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                  Category
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                  Status
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                  Assigned To
+                </th>
+                <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan="6"
+                    className="px-4 py-8 text-center text-sm text-slate-500"
+                  >
                     Loading assets...
                   </td>
                 </tr>
               ) : currentPageAssets.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td
+                    colSpan="6"
+                    className="px-4 py-8 text-center text-sm text-slate-500"
+                  >
                     No assets found matching the search or status.
                   </td>
                 </tr>
@@ -513,8 +602,12 @@ function AdminAssets() {
                     <td className="px-4 py-4 text-sm text-slate-900">
                       {asset.status === "assigned" && asset.assignedTo ? (
                         <div className="flex flex-col">
-                          <span className="font-semibold text-slate-800">{asset.assignedTo.name}</span>
-                          <span className="text-xs text-slate-400">ID: {asset.assignedTo.userId?.userId || "—"}</span>
+                          <span className="font-semibold text-slate-800">
+                            {asset.assignedTo.name}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            ID: {asset.assignedTo.userId?.userId || "—"}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -549,7 +642,8 @@ function AdminAssets() {
         {pageCount > 1 && (
           <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Showing {currentPageAssets.length} of {filteredAssets.length} assets
+              Showing {currentPageAssets.length} of {filteredAssets.length}{" "}
+              assets
             </p>
 
             <div className="flex items-center gap-2">
@@ -572,216 +666,270 @@ function AdminAssets() {
       </div>
 
       {/* Edit Asset Modal */}
-      {editModalOpen && editAsset && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-            {/* Header */}
-            <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
-              <div>
-                <h3 className="font-bold text-lg">Edit Asset</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Modify asset details in inventory catalog</p>
-              </div>
-              <button
-                onClick={() => {
-                  setEditModalOpen(false);
-                  setEditAsset(null);
-                }}
-                className="text-slate-400 hover:text-white rounded-full p-1 transition"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Asset Name</span>
-                <input
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Asset ID</span>
-                <input
-                  required
-                  value={editAssetId}
-                  onChange={(e) => setEditAssetId(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Category</span>
-                <select
-                  required
-                  value={editType}
-                  onChange={(e) => setEditType(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                >
-                  {categoriesList.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                  <option value="CUSTOM_OPTION">Custom (Type new category...)</option>
-                </select>
-              </label>
-
-              {editType === "CUSTOM_OPTION" && (
-                <label className="block">
-                  <span className="text-xs font-semibold text-slate-600">New Category Name</span>
-                  <input
-                    required
-                    value={editCustomType}
-                    onChange={(e) => setEditCustomType(e.target.value)}
-                    placeholder="e.g. Server"
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                  />
-                </label>
-              )}
-
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Purchase Date</span>
-                <input
-                  required
-                  type="date"
-                  value={editPurchaseDate}
-                  onChange={(e) => setEditPurchaseDate(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">Status</span>
-                {editAsset.status === "assigned" ? (
-                  <div className="mt-2">
-                    <select
-                      disabled
-                      value="assigned"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-500 px-4 py-2.5 text-sm cursor-not-allowed outline-none"
-                    >
-                      <option value="assigned">Assigned</option>
-                    </select>
-                    <p className="mt-1.5 text-xs font-medium text-slate-400">
-                      ℹ Status cannot be changed directly while assigned. Use the Assignments page to return/reassign.
-                    </p>
-                  </div>
-                ) : (
-                  <select
-                    required
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                  >
-                    <option value="available">Available</option>
-                    <option value="damage">Damaged</option>
-                    <option value="repair">Under Repair</option>
-                  </select>
-                )}
-              </label>
-
-              <div className="flex items-center gap-3 pt-2">
+      {editModalOpen &&
+        editAsset &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+              {/* Header */}
+              <div className="bg-black px-6 py-5 flex items-center justify-between text-white">
+                <div>
+                  <h3 className="font-bold text-lg">Edit Asset</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Modify asset details in inventory catalog
+                  </p>
+                </div>
                 <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500 disabled:opacity-50"
-                >
-                  {submitting ? "Saving..." : "Save Changes"}
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setEditModalOpen(false);
                     setEditAsset(null);
                   }}
-                  className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className="text-slate-400 hover:text-white rounded-full p-1 transition"
                 >
-                  Cancel
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+
+              {/* Form */}
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Asset Name
+                  </span>
+                  <input
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Asset ID
+                  </span>
+                  <input
+                    required
+                    value={editAssetId}
+                    onChange={(e) => setEditAssetId(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Category
+                  </span>
+                  <select
+                    required
+                    value={editType}
+                    onChange={(e) => setEditType(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                  >
+                    {categoriesList.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="CUSTOM_OPTION">
+                      Custom (Type new category...)
+                    </option>
+                  </select>
+                </label>
+
+                {editType === "CUSTOM_OPTION" && (
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">
+                      New Category Name
+                    </span>
+                    <input
+                      required
+                      value={editCustomType}
+                      onChange={(e) => setEditCustomType(e.target.value)}
+                      placeholder="e.g. Server"
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                    />
+                  </label>
+                )}
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Purchase Date
+                  </span>
+                  <input
+                    required
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    value={editPurchaseDate}
+                    onChange={(e) => setEditPurchaseDate(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">
+                    Status
+                  </span>
+                  {editAsset.status === "assigned" ? (
+                    <div className="mt-2">
+                      <select
+                        disabled
+                        value="assigned"
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-100 text-slate-500 px-4 py-2.5 text-sm cursor-not-allowed outline-none"
+                      >
+                        <option value="assigned">Assigned</option>
+                      </select>
+                      <p className="mt-1.5 text-xs font-medium text-red-400">
+                        Status cannot be changed directly while assigned. Use
+                        the Assignments page to return/reassign.
+                      </p>
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                    >
+                      <option value="available">Available</option>
+                      <option value="damage">Damaged</option>
+                      <option value="repair">Under Repair</option>
+                    </select>
+                  )}
+                </label>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting || !hasAssetChanges}
+                    className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditModalOpen(false);
+                      setEditAsset(null);
+                    }}
+                    className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Delete Confirmation Modal */}
-      {deleteModalOpen && assetToDelete && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-fade-in">
-            {/* Header */}
-            <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
-              <div>
-                <h3 className="font-bold text-lg">Delete Asset</h3>
-                <p className="text-xs font-bold text-black mt-0.5">This action cannot be undone</p>
-              </div>
-              <button
-                onClick={() => {
-                  setDeleteModalOpen(false);
-                  setAssetToDelete(null);
-                }}
-                className="text-yellow-400 hover:text-white rounded-full p-1 transition"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 text-yellow-400">
-                <svg className="w-10 h-10 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <p className="text-sm font-semibold text-slate-800">
-                  Are you sure you want to permanently delete this asset?
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-1 text-sm text-slate-700">
+      {deleteModalOpen &&
+        assetToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in">
+              {/* Header */}
+              <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
                 <div>
-                  <span className="font-semibold text-slate-500">Asset Name: </span>
-                  <span className="font-bold text-slate-800">{assetToDelete.name}</span>
+                  <h3 className="font-bold text-lg">Delete Asset</h3>
+                  <p className="text-xs font-bold text-black mt-0.5">
+                    This action cannot be undone
+                  </p>
                 </div>
-                <div>
-                  <span className="font-semibold text-slate-500">Asset ID: </span>
-                  <span className="font-mono font-bold text-slate-800">{assetToDelete.assetId}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
                 <button
-                  type="button"
-                  onClick={handleConfirmDelete}
-                  className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 shadow-sm"
-                >
-                  Yes, Delete
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setDeleteModalOpen(false);
                     setAssetToDelete(null);
                   }}
-                  className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className="text-yellow-400 hover:text-white rounded-full p-1 transition"
                 >
-                  Cancel
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-3 text-red-500">
+                  <svg
+                    className="w-10 h-10 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Are you sure you want to permanently delete this asset?
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-1 text-sm text-slate-700">
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Asset Name:{" "}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {assetToDelete.name}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Asset ID:{" "}
+                    </span>
+                    <span className="font-mono font-bold text-slate-800">
+                      {assetToDelete.assetId}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 shadow-sm"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteModalOpen(false);
+                      setAssetToDelete(null);
+                    }}
+                    className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

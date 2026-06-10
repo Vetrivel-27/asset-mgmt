@@ -1,67 +1,75 @@
-import Employee from '../models/Employee.js';
-import User from '../models/User.js';
-import Role from '../models/Role.js';
-import Assignment from '../models/Assignment.js';
-import crypto from 'crypto';
-import sendEmail from '../utils/sendEmail.js';
-import bcrypt from 'bcrypt';
+import Employee from "../models/Employee.js";
+import User from "../models/User.js";
+import Role from "../models/Role.js";
+import Assignment from "../models/Assignment.js";
+import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
+import bcrypt from "bcrypt";
 
 export const getEmployeeProfile = async (req, res) => {
-    try {
-        const employee = await Employee.findOne({ userId: req.user.id })
-            .populate({
-                path: 'userId',
-                select: 'userId email role',
-                populate: { path: 'role', select: 'name' }
-            });
-        if (!employee) {
-            return res.status(404).json({ message: 'Employee profile not found' });
-        }
-        res.json(employee);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+  try {
+    const employee = await Employee.findOne({ userId: req.user.id }).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee profile not found" });
     }
+    res.json(employee);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const createEmployee = async (req, res) => {
-    try {
-        const { name, employeeId, department, email, roleId } = req.body;
+  try {
+    const { name, employeeId, department, email, roleId } = req.body;
 
-        // Check if user with this email or userId already exists
-        const userExists = await User.findOne({ $or: [{ userId: employeeId }, { email }] });
-        if (userExists) {
-            return res.status(400).json({ message: 'User with this ID or email already exists' });
-        }
-        // Create User account first
-        const employeeRole = roleId? await Role.findById(roleId) : await Role.findOne({ name: 'employee' });
-        if (!employeeRole) {
-            return res.status(500).json({ message: 'Employee role not found' });
-        }
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-        const hashedPassword = await bcrypt.hash("pass123", 10);
+    // Check if user with this email or userId already exists
+    const userExists = await User.findOne({
+      $or: [{ userId: employeeId }, { email }],
+    });
+    if (userExists) {
+      return res
+        .status(400)
+        .json({ message: "User with this ID or email already exists" });
+    }
+    // Create User account first
+    const employeeRole = roleId
+      ? await Role.findById(roleId)
+      : await Role.findOne({ name: "employee" });
+    if (!employeeRole) {
+      return res.status(500).json({ message: "Employee role not found" });
+    }
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    const hashedPassword = await bcrypt.hash("pass123", 10);
 
-        const newUser = await User.create({
-            userId: employeeId,
-            email,
-            role: employeeRole._id,
-            password: hashedPassword,
-            resetPasswordToken: hashedToken,
-            resetPasswordExpires: Date.now() + 24 * 60 * 60 * 1000
-        });
+    const newUser = await User.create({
+      userId: employeeId,
+      email,
+      role: employeeRole._id,
+      password: hashedPassword,
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: Date.now() + 24 * 60 * 60 * 1000,
+    });
 
-        // Create Employee linked to User, no duplication
-        const employee = await Employee.create({
-            name,
-            department,
-            userId: newUser._id,
-            createdBy: req.user.id
-        });
+    // Create Employee linked to User, no duplication
+    const employee = await Employee.create({
+      name,
+      department,
+      userId: newUser._id,
+      createdBy: req.user.id,
+    });
 
-        // Send setup email
-        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
-        const message = `
+    // Send setup email
+    const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+    const message = `
             <h1>Asset Management System</h1>
             <p>Welcome, ${name}! Your account has been created.</p>
             <p>Your User ID is: <strong>${employeeId}</strong></p>
@@ -70,148 +78,157 @@ export const createEmployee = async (req, res) => {
             <p>This link will expire in 24 hours.</p>
         `;
 
-        try {
-            await sendEmail({ email, subject: 'Account Created - Asset Management System', html: message });
-            console.log(`Setup email sent to ${email}`);
-        } catch (e) {
-            console.error("Failed to send email:", e);
-        }
+    try {
+      await sendEmail({
+        email,
+        subject: "Account Created - Asset Management System",
+        html: message,
+      });
+      console.log(`Setup email sent to ${email}`);
+    } catch (e) {
+      console.error("Failed to send email:", e);
+    }
 
-        // Return employee with user info populated
-        const populatedEmployee = await Employee.findById(employee._id).populate({
-            path: 'userId',
-            select: 'userId email role',
-            populate: { path: 'role', select: 'name' }
-        });
-        res.status(201).json(populatedEmployee);
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-    }
+    // Return employee with user info populated
+    const populatedEmployee = await Employee.findById(employee._id).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+    res.status(201).json(populatedEmployee);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const getEmployees = async (req, res) => {
-    try {
-        const employees = await Employee.find({}).populate({
-            path: 'userId',
-            select: 'userId email role',
-            populate: { path: 'role', select: 'name' }
-        });
-        
-        // Compute borrowed assets count for each employee
-        const employeesWithCount = await Promise.all(employees.map(async (emp) => {
-            const count = await Assignment.countDocuments({
-                employeeId: emp._id,
-                returnedDate: null
-            });
-            return {
-                ...emp.toObject(),
-                assetsBorrowedCount: count
-            };
-        }));
+  try {
+    const employees = await Employee.find({}).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
 
-        res.json(employeesWithCount);
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-    }
+    // Compute borrowed assets count for each employee
+    const employeesWithCount = await Promise.all(
+      employees.map(async (emp) => {
+        const count = await Assignment.countDocuments({
+          employeeId: emp._id,
+          returnedDate: null,
+        });
+        return {
+          ...emp.toObject(),
+          assetsBorrowedCount: count,
+        };
+      }),
+    );
+
+    res.json(employeesWithCount);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const getEmployeeById = async (req, res) => {
-    try {
-        const employee = await Employee.findById(req.params.id).populate({
-            path: 'userId',
-            select: 'userId email role',
-            populate: { path: 'role', select: 'name' }
-        });
-        if (employee) {
-            res.json(employee);
-        } else {
-            res.status(404).json({ message: 'Employee not found' });
-        }
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+  try {
+    const employee = await Employee.findById(req.params.id).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+    if (employee) {
+      res.json(employee);
+    } else {
+      res.status(404).json({ message: "Employee not found" });
     }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const getMyEmployeeProfile = async (req, res) => {
-    try {
-        const employee = await Employee.findOne({ userId: req.user.id }).populate({
-            path: 'userId',
-            select: 'userId email role',
-            populate: { path: 'role', select: 'name' }
-        });
+  try {
+    const employee = await Employee.findOne({ userId: req.user.id }).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
 
-        if (!employee) {
-            return res.status(404).json({ message: 'Employee profile not found' });
-        }
-
-        res.json(employee);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee profile not found" });
     }
+
+    res.json(employee);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const updateEmployee = async (req, res) => {
-    try {
-        const employee = await Employee.findById(req.params.id);
-        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee)
+      return res.status(404).json({ message: "Employee not found" });
 
-        // Update Employee fields
-        employee.name = req.body.name || employee.name;
-        employee.department = req.body.department || employee.department;
+    // Update Employee fields
+    employee.name = req.body.name || employee.name;
+    employee.department = req.body.department || employee.department;
 
-        // Update User fields (email and userId live in User now!)
-        if (req.body.email || req.body.employeeId) {
-            const userUpdate = {};
-            if (req.body.email) userUpdate.email = req.body.email;
-            if (req.body.employeeId) userUpdate.userId = req.body.employeeId;
-            await User.findByIdAndUpdate(employee.userId, userUpdate);
-        }
-
-        const updatedEmployee = await employee.save();
-        const populated = await Employee.findById(updatedEmployee._id).populate({
-            path: 'userId',
-            select: 'userId email role',
-            populate: { path: 'role', select: 'name' }
-        });
-        res.json(populated);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+    // Update User fields (email, userId, and role live in User now!)
+    if (req.body.email || req.body.employeeId || req.body.roleId) {
+      const userUpdate = {};
+      if (req.body.email) userUpdate.email = req.body.email;
+      if (req.body.employeeId) userUpdate.userId = req.body.employeeId;
+      if (req.body.roleId) userUpdate.role = req.body.roleId;
+      await User.findByIdAndUpdate(employee.userId, userUpdate);
     }
+
+    const updatedEmployee = await employee.save();
+    const populated = await Employee.findById(updatedEmployee._id).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+    res.json(populated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const deleteEmployee = async (req, res) => {
-    try {
-        const employee = await Employee.findById(req.params.id);
-        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee)
+      return res.status(404).json({ message: "Employee not found" });
 
-        // Soft delete the User account so they can't log in anymore
-        const user = await User.findById(employee.userId);
-        if (user) {
-            if (user.email === 'admin@test.com') {
-                return res.status(400).json({ message: 'Seeded admin account cannot be deleted.' });
-            }
-            user.isDeleted = true;
-            user.deletedAt = new Date();
-            user.deletedBy = req.user.id;
-            await user.save();
-        }
-
-        // Soft delete the Employee
-        employee.isDeleted = true;
-        employee.deletedAt = new Date();
-        employee.deletedBy = req.user.id;
-        await employee.save();
-
-        res.json({ message: 'Employee and User account removed' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+    // Soft delete the User account so they can't log in anymore
+    const user = await User.findById(employee.userId);
+    if (user) {
+      if (user.email === "admin@test.com") {
+        return res
+          .status(400)
+          .json({ message: "Seeded admin account cannot be deleted." });
+      }
+      user.isDeleted = true;
+      user.deletedAt = new Date();
+      user.deletedBy = req.user.id;
+      await user.save();
     }
+
+    // Soft delete the Employee
+    employee.isDeleted = true;
+    employee.deletedAt = new Date();
+    employee.deletedBy = req.user.id;
+    await employee.save();
+
+    res.json({ message: "Employee and User account removed" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
