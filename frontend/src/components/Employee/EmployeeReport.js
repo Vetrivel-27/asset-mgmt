@@ -13,6 +13,20 @@ function EmployeeReport() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (sent) {
+      const timer = setTimeout(() => setSent(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [sent]);
+
+  useEffect(() => {
     let mounted = true;
     async function loadData() {
       try {
@@ -105,6 +119,10 @@ function EmployeeReport() {
         throw new Error(data.message || data.error || "Failed to submit report.");
       }
       setSent(true);
+      setComment("");
+      setSelectedAssignmentId("");
+      setReportType("damage");
+      setSeverity(60);
     } catch (err) {
       setError(err.message || "Something went wrong.");
     } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
@@ -24,19 +24,16 @@ function getAuthHeaders() {
 
 // ── Collapsible quick-action panel ──────────────────────────────────────────
 function QuickPanel({ open, children }) {
-  const ref = useRef(null);
-  const [height, setHeight] = useState(0);
-
-  useEffect(() => {
-    if (ref.current) setHeight(open ? ref.current.scrollHeight : 0);
-  }, [open, children]);
-
   return (
     <div
-      style={{ maxHeight: height, overflow: "hidden", transition: "max-height 0.35s ease" }}
+      className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      }`}
     >
-      <div ref={ref} className="pt-4">
-        {children}
+      <div className="overflow-hidden">
+        <div className="pt-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -51,6 +48,13 @@ function AddAssetForm({ onSuccess, onCancel }) {
   const [purchaseDate, setPurchaseDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,6 +82,16 @@ function AddAssetForm({ onSuccess, onCancel }) {
       onSuccess(`Asset "${data.name}" added successfully!`);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
+  };
+
+  const handleCancel = () => {
+    setName("");
+    setAssetId("");
+    setCategory("");
+    setCustomCat("");
+    setPurchaseDate("");
+    setError("");
+    onCancel();
   };
 
   const inputCls = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
@@ -117,7 +131,7 @@ function AddAssetForm({ onSuccess, onCancel }) {
           className="rounded-xl bg-yellow-400 px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-yellow-300 disabled:opacity-50">
           {submitting ? "Adding…" : "Add Asset"}
         </button>
-        <button type="button" onClick={onCancel} disabled={submitting}
+        <button type="button" onClick={handleCancel} disabled={submitting}
           className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
           Cancel
         </button>
@@ -127,26 +141,35 @@ function AddAssetForm({ onSuccess, onCancel }) {
 }
 
 // ── Register-Employee mini form ──────────────────────────────────────────────
-function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
+function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }) {
   const [name, setName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
   const [roleId, setRoleId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !employeeId.trim() || !email.trim()) {
-      setError("Name, ID, and email are required."); return;
+    const finalDepartment = department === "CUSTOM" ? customDepartment.trim() : department.trim();
+    if (!name.trim() || !employeeId.trim() || !email.trim() || !finalDepartment) {
+      setError("Name, ID, email, and department are required."); return;
     }
     setSubmitting(true); setError("");
     try {
       const res = await fetch(`${API_URL}/api/employees`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), employeeId: employeeId.trim(), email: email.trim(), department: department.trim(), roleId }),
+        body: JSON.stringify({ name: name.trim(), employeeId: employeeId.trim(), email: email.trim(), department: finalDepartment, roleId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to register employee.");
@@ -156,11 +179,23 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
       setEmployeeId("");
       setEmail("");
       setDepartment("");
+      setCustomDepartment("");
       setRoleId("");
 
       onSuccess(`Employee "${data.name || name}" registered! A welcome email has been sent.`);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
+  };
+
+  const handleCancel = () => {
+    setName("");
+    setEmployeeId("");
+    setEmail("");
+    setDepartment("");
+    setCustomDepartment("");
+    setRoleId("");
+    setError("");
+    onCancel();
   };
 
   const inputCls = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
@@ -182,7 +217,14 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
         </label>
         <label className="block">
           <span className="text-xs font-medium text-slate-600">Department</span>
-          <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Engineering" disabled={submitting} className={`mt-1 ${inputCls}`} />
+          <select value={department} onChange={e => setDepartment(e.target.value)} disabled={submitting} className={`mt-1 ${inputCls}`}>
+            <option value="">Select Department</option>
+            {dbDepartments.map(dep => <option key={dep} value={dep}>{dep}</option>)}
+            <option value="CUSTOM">Custom department...</option>
+          </select>
+          {department === "CUSTOM" && (
+            <input value={customDepartment} onChange={e => setCustomDepartment(e.target.value)} placeholder="e.g. Data Science" disabled={submitting} className={`mt-2 ${inputCls}`} />
+          )}
         </label>
         <label className="block sm:col-span-2">
           <span className="text-xs font-medium text-slate-600">Role</span>
@@ -197,7 +239,7 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
           className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
           {submitting ? "Registering…" : "Register Employee"}
         </button>
-        <button type="button" onClick={onCancel} disabled={submitting}
+        <button type="button" onClick={handleCancel} disabled={submitting}
           className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
           Cancel
         </button>
@@ -212,6 +254,7 @@ function AdminDashboard() {
   const [stats, setStats] = useState({ assets: 0, employees: 0, activeAssignments: 0 });
   const [activity, setActivity] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [dbDepartments, setDbDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Quick-action panel state
@@ -316,6 +359,10 @@ function AdminDashboard() {
           .sort((a, b) => b.date - a.date)
           .slice(0, 5);
 
+        // Compute departments
+        const deps = new Set(empArr.map(e => e.department).filter(Boolean));
+        setDbDepartments(Array.from(deps).sort());
+
         setActivity(feed);
         setRoles(Array.isArray(rolesData) ? rolesData : []);
       } catch (err) {
@@ -401,7 +448,7 @@ function AdminDashboard() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm text-slate-800">{item.text}</p>
-                    <p className="text-xs text-slate-400">{item.date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</p>
+                    <p className="text-xs text-slate-400">{item.date.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
                 </div>
               ))
@@ -457,6 +504,7 @@ function AdminDashboard() {
               <QuickPanel open={activePanel === "employee"}>
                 <RegisterEmployeeForm
                   roles={roles}
+                  dbDepartments={dbDepartments}
                   onSuccess={(msg) => { showToast(msg); togglePanel(null); }}
                   onCancel={() => togglePanel(null)}
                 />

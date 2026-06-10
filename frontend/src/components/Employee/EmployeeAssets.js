@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
+import { createPortal } from "react-dom";
 
 // --- Dynamic Asset Thumbnail Finder ---
 const getThumbnail = (type) => {
@@ -389,7 +389,7 @@ function EmployeeAssets() {
                 <option value="">All Statuses</option>
                 <option value="available">Available</option>
                 <option value="assigned">Borrowed</option>
-                <option value="damage">Damaged</option>
+                <option value="damaged">Damaged</option>
                 <option value="repair">Under Repair</option>
               </select>
             </div>
@@ -453,9 +453,8 @@ function EmployeeAssets() {
             {assets.map((asset) => {
               const isAssigned = asset.status?.toLowerCase() === "assigned";
               const isMaintenance =
-                asset.status?.toLowerCase() === "damage" ||
-                asset.status?.toLowerCase() === "repair" ||
-                asset.status?.toLowerCase() === "maintenance"; // Damaged or Under Repair
+                asset.status?.toLowerCase() === "damaged" ||
+                asset.status?.toLowerCase() === "repair"; // Damaged or Under Repair
 
               return (
                 <div
@@ -477,16 +476,14 @@ function EmployeeAssets() {
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : isAssigned
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : asset.status?.toLowerCase() === "damage" ||
-                                  asset.status?.toLowerCase() === "maintenance"
+                              : asset.status?.toLowerCase() === "damaged"
                                 ? "bg-red-50 text-red-700 border-red-200"
                                 : asset.status?.toLowerCase() === "repair"
                                   ? "bg-amber-50 text-amber-700 border-amber-200"
                                   : "bg-slate-50 text-slate-700 border-slate-200"
                         }`}
                       >
-                        {asset.status === "damage" ||
-                        asset.status === "maintenance"
+                        {asset.status === "damaged"
                           ? "Damaged"
                           : asset.status === "repair"
                             ? "Under Repair"
@@ -645,7 +642,7 @@ function EmployeeAssets() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Category
+                      Category / Type
                     </label>
                     <p className="text-xs font-bold text-slate-700 capitalize">
                       {selectedAsset.type}
