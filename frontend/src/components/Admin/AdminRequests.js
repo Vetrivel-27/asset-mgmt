@@ -103,6 +103,7 @@ function AdminRequests() {
       }
 
       setSuccessMsg("Request approved and asset assigned successfully!");
+      window.dispatchEvent(new Event("request_status_changed"));
       setApproveModalOpen(false);
       setSelectedRequest(null);
       setSelectedAssetId("");
@@ -145,6 +146,7 @@ function AdminRequests() {
       }
 
       setSuccessMsg("Request has been rejected.");
+      window.dispatchEvent(new Event("request_status_changed"));
       loadRequests();
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {

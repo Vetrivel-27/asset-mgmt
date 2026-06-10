@@ -48,6 +48,7 @@ function DashboardLayout() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [profile, setProfile] = useState({
     name: sessionStorage.getItem("userName") || "User",
     role: sessionStorage.getItem("userRole") || "",
@@ -79,6 +80,40 @@ function DashboardLayout() {
     loadProfile();
     return () => { mounted = false; };
   }, []);
+
+  // Fetch pending requests count for the badge
+  useEffect(() => {
+    const token = sessionStorage.getItem("authToken");
+    if (!token || !canAccess("approve_borrow")) return;
+
+    let mounted = true;
+    async function fetchRequestsCount() {
+      try {
+        const res = await fetch(`${API_URL}/api/requests`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (mounted && res.ok && Array.isArray(data)) {
+          const count = data.filter(r => r.status === "pending").length;
+          setPendingRequestsCount(count);
+        }
+      } catch (err) {
+        console.error("Failed to load requests count", err);
+      }
+    }
+    fetchRequestsCount();
+    
+    // Refresh count periodically (every 30 seconds)
+    const intervalId = setInterval(fetchRequestsCount, 30000);
+
+    window.addEventListener("request_status_changed", fetchRequestsCount);
+
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+      window.removeEventListener("request_status_changed", fetchRequestsCount);
+    };
+  }, [location.pathname]); // Re-fetch when navigating to keep it up to date
 
   const adminUser = isAdmin();
 
@@ -160,13 +195,18 @@ function DashboardLayout() {
                   to={to}
                   end={end}
                   className={({ isActive }) =>
-                    `block rounded-2xl px-4 py-3 text-sm font-medium transition-colors border-b whitespace-nowrap
+                    `flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition-colors border-b whitespace-nowrap
                      ${isActive
                        ? "bg-yellow-400 text-slate-900"
                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`
                   }
                 >
-                  {label}
+                  <span>{label}</span>
+                  {to === "/dashboard/requests" && pendingRequestsCount > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+                      {pendingRequestsCount > 99 ? "99+" : pendingRequestsCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
