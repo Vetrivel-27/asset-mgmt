@@ -49,6 +49,20 @@ function AdminAssets() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
 
+  useEffect(() => {
+    if (submitError) {
+      const timer = setTimeout(() => setSubmitError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitError]);
+
+  useEffect(() => {
+    if (submitSuccess) {
+      const timer = setTimeout(() => setSubmitSuccess(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitSuccess]);
+
   const categoriesList = useMemo(() => {
     return Array.from(new Set([...SEED_CATEGORIES, ...dbCategories]));
   }, [dbCategories]);
@@ -497,7 +511,7 @@ function AdminAssets() {
               { id: "all", label: "All" },
               { id: "available", label: "Available" },
               { id: "assigned", label: "Assigned" },
-              { id: "damage", label: "Damaged" },
+              { id: "damaged", label: "Damaged" },
               { id: "repair", label: "Under Repair" },
             ].map((btn) => (
               <button
@@ -580,14 +594,14 @@ function AdminAssets() {
                             ? "bg-green-50 text-green-700 border-green-200"
                             : asset.status === "assigned"
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : asset.status === "damage"
+                              : asset.status === "damaged"
                                 ? "bg-red-50 text-red-700 border-red-200"
                                 : asset.status === "repair"
                                   ? "bg-amber-50 text-amber-700 border-amber-200"
                                   : "bg-slate-50 text-slate-700 border-slate-200"
                         }`}
                       >
-                        {asset.status === "damage"
+                        {asset.status === "damaged"
                           ? "Damaged"
                           : asset.status === "repair"
                             ? "Under Repair"
@@ -796,7 +810,7 @@ function AdminAssets() {
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
                     >
                       <option value="available">Available</option>
-                      <option value="damage">Damaged</option>
+                      <option value="damaged">Damaged</option>
                       <option value="repair">Under Repair</option>
                     </select>
                   )}

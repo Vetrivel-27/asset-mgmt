@@ -9,53 +9,96 @@ function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [showAllReportsModal, setShowAllReportsModal] = useState(false);
 
+  const fetchLatestData = async (mounted = true) => {
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const headers = { Authorization: `Bearer ${token}` };
+      const [assetsRes, assignmentsRes, reportsRes] = await Promise.all([
+        fetch(`${API_URL}/api/assets`, { headers }),
+        fetch(`${API_URL}/api/assignments`, { headers }),
+        fetch(`${API_URL}/api/reports`, { headers }),
+      ]);
+      const [assetsData, assignmentsData, reportsData] = await Promise.all([
+        assetsRes.json(),
+        assignmentsRes.json(),
+        reportsRes.json()
+      ]);
+      if (mounted) {
+        setAssets(Array.isArray(assetsData) ? assetsData : []);
+        setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
+        setFiledReports(Array.isArray(reportsData) ? reportsData : []);
+      }
+    } catch (err) {
+      console.error("Failed to load reports data", err);
+      if (mounted) {
+        setAssets([]);
+        setAssignments([]);
+        setFiledReports([]);
+      }
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-    async function load() {
-      try {
-        const token = sessionStorage.getItem("authToken");
-        const headers = { Authorization: `Bearer ${token}` };
-        const [assetsRes, assignmentsRes, reportsRes] = await Promise.all([
-          fetch(`${API_URL}/api/assets`, { headers }),
-          fetch(`${API_URL}/api/assignments`, { headers }),
-          fetch(`${API_URL}/api/reports`, { headers }),
-        ]);
-        const [assetsData, assignmentsData, reportsData] = await Promise.all([
-          assetsRes.json(),
-          assignmentsRes.json(),
-          reportsRes.json()
-        ]);
-        if (mounted) {
-          setAssets(Array.isArray(assetsData) ? assetsData : []);
-          setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
-          setFiledReports(Array.isArray(reportsData) ? reportsData : []);
-        }
-      } catch (err) {
-        console.error("Failed to load reports data", err);
-        if (mounted) {
-          setAssets([]);
-          setAssignments([]);
-          setFiledReports([]);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
+    fetchLatestData(mounted);
     return () => {
       mounted = false;
     };
   }, []);
 
+  const handleStatusChange = async (reportId, newStatus) => {
+    // newStatus is the actual backend value: 'open' | 'in_progress' | 'resolved'
+    const previousReports = [...filedReports];
+    // Optimistic UI update immediately
+    setFiledReports(prev => prev.map(r => r._id === reportId ? { ...r, status: newStatus } : r));
+
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const res = await fetch(`${API_URL}/api/reports/${reportId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Final sync from server truth
+        setFiledReports(prev => prev.map(r => r._id === reportId ? { ...r, status: data.report.status } : r));
+        // Refresh all derived data (available counts, assignments, etc.)
+        fetchLatestData(true);
+      } else {
+        setFiledReports(previousReports);
+      }
+    } catch (err) {
+      console.error(err);
+      setFiledReports(previousReports);
+    }
+  };
+
+  const statusColor = (status) => {
+    if (status === 'open') return 'bg-blue-100 text-blue-700';
+    if (status === 'in_progress') return 'bg-yellow-100 text-yellow-700';
+    if (status === 'resolved') return 'bg-green-100 text-green-700';
+    return 'bg-slate-100 text-slate-600';
+  };
+
+  const statusLabel = (status) => {
+    if (status === 'open') return 'Open';
+    if (status === 'in_progress') return 'In Progress';
+    if (status === 'resolved') return 'Closed';
+    return status;
+  };
+
   const damagedAssets = useMemo(
     () =>
-      assets.filter(
-        (a) =>
-          (a.status || a.condition || "").toLowerCase() === "damaged" ||
-          (a.status || "").toLowerCase() === "maintenance" ||
-          (a.status || "").toLowerCase() === "damage" ||
-          (a.status || "").toLowerCase() === "repair",
-      ),
+      assets.filter((a) => {
+        const s = (a.status || "").toLowerCase();
+        return s === "damaged" || s === "repair";
+      }),
     [assets],
   );
 
@@ -63,6 +106,10 @@ function AdminReports() {
     () => assets.filter((a) => (a.status || "").toLowerCase() === "available"),
     [assets],
   );
+
+  const activeReportsCount = useMemo(() => {
+    return filedReports.filter(r => r.status !== 'resolved').length;
+  }, [filedReports]);
 
   const recentlyAssigned = useMemo(() => {
     return assignments
@@ -133,7 +180,7 @@ function AdminReports() {
                       <div className="text-xs text-slate-500">
                         {employeeName} •{" "}
                         {r.assignedDate
-                          ? new Date(r.assignedDate).toLocaleDateString()
+                          ? new Date(r.assignedDate).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
                           : "—"}
                       </div>
                     </div>
@@ -162,7 +209,7 @@ function AdminReports() {
 
           <div className="mt-6 flex-1 overflow-hidden">
             <div className="text-3xl font-semibold text-slate-900 text-red-500">
-              {filedReports.length}
+              {activeReportsCount}
             </div>
             <p className="text-sm text-slate-500 mt-1">Total active reports</p>
 
@@ -329,9 +376,16 @@ function AdminReports() {
                     <div className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : r.type === 'lost' ? 'bg-purple-100 text-purple-700' : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
                       {r.type}
                     </div>
-                    <div className={`text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.status === 'open' ? 'bg-blue-100 text-blue-700' : r.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                      {r.status}
-                    </div>
+                    <select
+                      value={r.status}
+                      onChange={(e) => handleStatusChange(r._id, e.target.value)}
+                      disabled={r.status === 'resolved'}
+                      className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md outline-none border-none appearance-none ${statusColor(r.status)} ${r.status === 'resolved' ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Closed</option>
+                    </select>
                   </div>
                 </div>
               ))}

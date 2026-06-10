@@ -34,6 +34,20 @@ function AdminEmployees() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
 
+  useEffect(() => {
+    if (submitError) {
+      const timer = setTimeout(() => setSubmitError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitError]);
+
+  useEffect(() => {
+    if (submitSuccess) {
+      const timer = setTimeout(() => setSubmitSuccess(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitSuccess]);
+
   // Edit Employee States
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState(null);

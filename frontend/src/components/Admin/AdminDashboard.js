@@ -49,6 +49,13 @@ function AddAssetForm({ onSuccess, onCancel }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const finalCat = category === "CUSTOM" ? customCat.trim() : category;
@@ -143,6 +150,13 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
   const [roleId, setRoleId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -434,7 +448,7 @@ function AdminDashboard() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm text-slate-800">{item.text}</p>
-                    <p className="text-xs text-slate-400">{item.date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</p>
+                    <p className="text-xs text-slate-400">{item.date.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
                 </div>
               ))

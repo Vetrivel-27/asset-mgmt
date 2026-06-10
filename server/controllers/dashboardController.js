@@ -8,9 +8,9 @@ export const getDashboardStats = async (req, res) => {
         const totalAssets = await Asset.countDocuments();
         const availableAssets = await Asset.countDocuments({status: 'available' });
         const assignedAssets = await Asset.countDocuments({ status:'assigned'});    
-        const damageAssets = await Asset.countDocuments({ status:'damage'});
+        const damagedAssets = await Asset.countDocuments({ status:'damaged'});
         const repairAssets = await Asset.countDocuments({ status:'repair'});
-        const maintenanceAssets = await Asset.countDocuments({ status: { $in: ['maintenance', 'damage', 'repair'] } });
+        const unavailableAssets = await Asset.countDocuments({ status: { $in: ['damaged', 'repair'] } });
         //Other counts
         const totalEmployees = await Employee.countDocuments();
         const openDamageReports = await AssetReport.countDocuments({ type:'damage', status:'open' });
@@ -20,8 +20,8 @@ export const getDashboardStats = async (req, res) => {
                 total: totalAssets,
                 available: availableAssets,
                 assigned: assignedAssets,
-                maintenance: maintenanceAssets,
-                damage: damageAssets,
+                unavailable: unavailableAssets,
+                damaged: damagedAssets,
                 repair: repairAssets
             },
             employees: {total: totalEmployees},
