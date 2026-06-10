@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
+import * as XLSX from "xlsx";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("authToken");
@@ -33,6 +34,119 @@ function AdminEmployees() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+
+  // Excel upload states
+  const [showUpload, setShowUpload] = useState(false);
+  const [excelData, setExcelData] = useState([]);
+  const [excelError, setExcelError] = useState("");
+  const [excelSuccess, setExcelSuccess] = useState("");
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleExcelFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleExcelFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+
+        const parsed = json.map((row) => {
+          const keys = Object.keys(row);
+          const getVal = (possibleNames) => {
+            const foundKey = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
+            return foundKey ? row[foundKey] : undefined;
+          };
+
+          return {
+            name: getVal(["name", "fullname", "full name", "employee name", "employeename"]),
+            employeeId: getVal(["employeeid", "employee id", "id", "userid", "user id", "code"]),
+            department: getVal(["department", "dept", "division", "team"]),
+            email: getVal(["email", "emailaddress", "email address", "mail"]),
+          };
+        });
+
+        const validParsed = parsed.filter(item => item.name || item.employeeId || item.email);
+
+        if (validParsed.length === 0) {
+          setExcelError("No valid rows containing Name, Employee ID, or Email were found in the excel file.");
+          setExcelData([]);
+        } else {
+          setExcelData(validParsed);
+          setExcelError("");
+        }
+      } catch (err) {
+        console.error(err);
+        setExcelError("Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.");
+        setExcelData([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleExcelSubmit = async (e) => {
+    e.preventDefault();
+    if (excelData.length === 0) return;
+
+    setUploadingExcel(true);
+    setExcelError("");
+    setExcelSuccess("");
+
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const res = await fetch(`${API_URL}/api/employees/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(excelData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.join("\n"));
+        }
+        throw new Error(data.message || "Failed to bulk upload employees.");
+      }
+
+      setExcelSuccess(data.message || `Successfully uploaded ${excelData.length} employees!`);
+      setExcelData([]);
+      await loadEmployees();
+      setTimeout(() => {
+        setExcelSuccess("");
+        setShowUpload(false);
+      }, 3000);
+    } catch (err) {
+      setExcelError(err.message || "Failed to upload employees.");
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
 
   useEffect(() => {
     if (submitError) {
@@ -86,40 +200,33 @@ function AdminEmployees() {
     return avatarColors[Math.abs(hash) % avatarColors.length];
   };
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadEmployees() {
-      try {
-        const headers = getAuthHeaders();
-        const [employeesRes, rolesRes] = await Promise.all([
-          fetch(`${API_URL}/api/employees`, { headers }),
-          fetch(`${API_URL}/api/roles`, { headers }),
-        ]);
-        const data = await employeesRes.json();
-        const rolesData = await rolesRes.json();
-        if (mounted) {
-          setEmployees(Array.isArray(data) ? data.map(normalizeEmployee) : []);
-          if (Array.isArray(rolesData)) {
-            setRoles(rolesData);
-            setFormRoleId(
-              rolesData.find((role) => role.name === "employee")?._id ||
-                rolesData[0]?._id ||
-                "",
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load employees", error);
-      } finally {
-        if (mounted) setLoading(false);
+  const loadEmployees = async () => {
+    try {
+      const headers = getAuthHeaders();
+      const [employeesRes, rolesRes] = await Promise.all([
+        fetch(`${API_URL}/api/employees`, { headers }),
+        fetch(`${API_URL}/api/roles`, { headers }),
+      ]);
+      const data = await employeesRes.json();
+      const rolesData = await rolesRes.json();
+      setEmployees(Array.isArray(data) ? data.map(normalizeEmployee) : []);
+      if (Array.isArray(rolesData)) {
+        setRoles(rolesData);
+        setFormRoleId(
+          rolesData.find((role) => role.name === "employee")?._id ||
+            rolesData[0]?._id ||
+            "",
+        );
       }
+    } catch (error) {
+      console.error("Failed to load employees", error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadEmployees();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   const filteredEmployees = useMemo(() => {
@@ -318,6 +425,54 @@ function AdminEmployees() {
     }
   };
 
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyEmployee, setHistoryEmployee] = useState(null);
+  const [historyAssignments, setHistoryAssignments] = useState([]);
+  const [historyReports, setHistoryReports] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const handleOpenHistory = async (employee) => {
+    setHistoryEmployee(employee);
+    setHistoryModalOpen(true);
+    setLoadingHistory(true);
+    setHistoryAssignments([]);
+    setHistoryReports([]);
+
+    try {
+      const headers = getAuthHeaders();
+      const [assignRes, reportRes] = await Promise.all([
+        fetch(`${API_URL}/api/assignments`, { headers }),
+        fetch(`${API_URL}/api/reports`, { headers })
+      ]);
+
+      if (assignRes.ok && reportRes.ok) {
+        const assignmentsData = assignRes.ok ? await assignRes.json() : [];
+        const reportsData = reportRes.ok ? await reportRes.json() : [];
+
+        // Filter assignments for this employee
+        const filteredAssigns = (Array.isArray(assignmentsData) ? assignmentsData : [])
+          .filter(a => {
+            const empId = a.employeeId?._id || a.employeeId;
+            return empId === employee._id;
+          });
+
+        // Filter reports for this employee
+        const filteredReports = (Array.isArray(reportsData) ? reportsData : [])
+          .filter(r => {
+            const empId = r.employeeId?._id || r.employeeId;
+            return empId === employee._id;
+          });
+
+        setHistoryAssignments(filteredAssigns);
+        setHistoryReports(filteredReports);
+      }
+    } catch (err) {
+      console.error("Failed to load employee history", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -328,15 +483,38 @@ function AdminEmployees() {
           </p>
         </div>
         <CanAccess permission="manage_users">
-          <button
-            onClick={() => {
-              setShowForm((current) => !current);
-              resetForm();
-            }}
-            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
-          >
-            {showForm ? "Cancel" : "New Employee"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowForm((current) => !current);
+                setShowUpload(false);
+                resetForm();
+              }}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                showForm
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
+              }`}
+            >
+              {showForm ? "Cancel" : "New Employee"}
+            </button>
+            <button
+              onClick={() => {
+                setShowUpload((prev) => !prev);
+                setShowForm(false);
+                setExcelData([]);
+                setExcelError("");
+                setExcelSuccess("");
+              }}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                showUpload
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  : "bg-slate-900 text-white hover:bg-slate-800"
+              }`}
+            >
+              {showUpload ? "Cancel" : "Upload Excel"}
+            </button>
+          </div>
         </CanAccess>
       </div>
 
@@ -357,7 +535,7 @@ function AdminEmployees() {
           </p>
 
           {submitError && (
-            <div className="mt-4 rounded-2xl bg-red-100 p-4 text-sm text-red-700">
+            <div className="mt-4 rounded-2xl bg-red-100 p-4 text-sm text-red-700 animate-shake">
               {submitError}
             </div>
           )}
@@ -463,6 +641,125 @@ function AdminEmployees() {
         </div>
       )}
 
+      {showUpload && (
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-900">Upload Employees via Excel</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Select or drag and drop an Excel file (.xlsx or .xls) to bulk import employees.
+          </p>
+
+          <form onSubmit={handleExcelSubmit} className="mt-5 space-y-4">
+            {/* Drag & Drop Zone */}
+            <div
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              className={`relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-8 text-center transition-all ${
+                dragActive
+                  ? "border-yellow-400 bg-yellow-50/50"
+                  : "border-slate-300 bg-slate-50 hover:bg-slate-100/70"
+              }`}
+            >
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => handleExcelFile(e.target.files[0])}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <svg
+                className="mx-auto h-12 w-12 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
+                />
+              </svg>
+              <p className="mt-4 text-sm font-semibold text-slate-700">
+                Drag and drop your Excel file here, or <span className="text-yellow-600 hover:text-yellow-700 underline">browse</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Supports .xlsx and .xls formats</p>
+            </div>
+
+            {/* Error & Success Messages within the component */}
+            {excelError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 shadow-sm animate-shake whitespace-pre-line">
+                ⚠ {excelError}
+              </div>
+            )}
+
+            {excelSuccess && (
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 shadow-sm">
+                ✓ {excelSuccess}
+              </div>
+            )}
+
+            {/* Data Preview */}
+            {excelData.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Preview: {excelData.length} Employee{excelData.length > 1 ? "s" : ""} detected
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcelData([]);
+                      setExcelError("");
+                    }}
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                  >
+                    Clear File
+                  </button>
+                </div>
+                <div className="max-h-60 overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100 text-xs">
+                  {excelData.map((emp, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100">
+                      <div>
+                        <div className="font-semibold text-slate-900">{emp.name || "—"}</div>
+                        <div className="text-slate-500">Dept: {emp.department || "—"}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-slate-700 font-medium">ID: {emp.employeeId || "—"}</div>
+                        <div className="text-slate-400">{emp.email || "—"}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={uploadingExcel || excelData.length === 0}
+                className="rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 disabled:opacity-50 transition"
+              >
+                {uploadingExcel ? "Uploading..." : "Confirm Upload"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExcelData([]);
+                  setExcelError("");
+                  setShowUpload(false);
+                }}
+                disabled={uploadingExcel}
+                className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <input
@@ -520,13 +817,17 @@ function AdminEmployees() {
               {pageItems.map((employee) => (
                 <div
                   key={employee._id || employee.employeeId || employee.email}
-                  className="group relative rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm min-w-0 transition hover:shadow-md"
+                  onClick={() => handleOpenHistory(employee)}
+                  className="group relative rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm min-w-0 transition hover:shadow-md cursor-pointer hover:border-yellow-400"
                 >
                   {/* Grid Edit Button on Hover */}
                   <CanAccess permission="manage_users">
                     <button
                       type="button"
-                      onClick={() => handleOpenEdit(employee)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEdit(employee);
+                      }}
                       className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl bg-yellow-100 p-2 text-xs font-bold text-yellow-800 hover:bg-yellow-200 shadow-sm"
                       title="Edit Employee"
                     >
@@ -623,6 +924,8 @@ function AdminEmployees() {
                       key={
                         employee._id || employee.employeeId || employee.email
                       }
+                      onClick={() => handleOpenHistory(employee)}
+                      className="hover:bg-slate-50/85 cursor-pointer transition"
                     >
                       <td className="px-4 py-4 text-sm text-slate-900">
                         {employee.name || "—"}
@@ -639,7 +942,7 @@ function AdminEmployees() {
                       <td className="px-4 py-4 text-sm capitalize text-slate-500">
                         {employee.roleName || "—"}
                       </td>
-                      <td className="px-4 py-4 text-right text-sm">
+                      <td className="px-4 py-4 text-right text-sm" onClick={(e) => e.stopPropagation()}>
                         <CanAccess permission="manage_users">
                           <div className="flex items-center justify-end gap-2">
                             <button
@@ -728,7 +1031,7 @@ function AdminEmployees() {
               {/* Form */}
               <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
                 {submitError && (
-                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700">
+                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700 animate-shake">
                     {submitError}
                   </div>
                 )}
@@ -885,6 +1188,197 @@ function AdminEmployees() {
             </div>
           </div>,
           document.body,
+        )}
+
+      {/* Employee History Modal */}
+      {historyModalOpen &&
+        historyEmployee &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="w-full max-w-4xl bg-white rounded-[32px] shadow-xl overflow-hidden border border-slate-200 max-h-[85vh] flex flex-col">
+              {/* Header */}
+              <div className="bg-slate-950 px-6 py-5 flex items-center justify-between text-white">
+                <div className="flex items-center gap-4">
+                  <div className={`h-12 w-12 rounded-full ${getAvatarColor(historyEmployee)} flex items-center justify-center text-white font-bold text-lg`}>
+                    {historyEmployee.name
+                      ? historyEmployee.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .slice(0, 2)
+                          .join("")
+                      : "—"}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight">{historyEmployee.name || "—"}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {historyEmployee.department || "—"} • {historyEmployee.roleName || "—"} • ID: {historyEmployee.employeeId || "—"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setHistoryModalOpen(false);
+                    setHistoryEmployee(null);
+                  }}
+                  className="text-slate-400 hover:text-white rounded-full p-1.5 transition hover:bg-slate-800"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50">
+                {loadingHistory ? (
+                  <div className="py-12 text-center text-slate-500 font-semibold">
+                    Loading history data...
+                  </div>
+                ) : (
+                  <>
+                    {/* Grid of Sections */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      
+                      {/* Active Assets */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                          <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            Currently Owned Assets
+                          </h4>
+                          <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
+                            {historyAssignments.filter(a => !a.returnedDate).length} Active
+                          </span>
+                        </div>
+                        <div className="space-y-3 flex-1">
+                          {historyAssignments.filter(a => !a.returnedDate).length === 0 ? (
+                            <p className="text-slate-400 text-sm py-4 text-center">No assets currently assigned.</p>
+                          ) : (
+                            historyAssignments.filter(a => !a.returnedDate).map(a => (
+                              <div key={a._id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm">
+                                <div className="flex justify-between font-semibold text-slate-800">
+                                  <span>{a.assetId?.name || "Unknown Asset"}</span>
+                                  <span className="text-xs text-slate-400 font-mono">{a.assetId?.assetId || ""}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1 flex justify-between">
+                                  <span>Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}</span>
+                                  {a.tentativeReturnDate && (
+                                    <span className="text-yellow-600 font-medium">Due: {new Date(a.tentativeReturnDate).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Borrow History */}
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                          <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            Ownership History
+                          </h4>
+                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                            {historyAssignments.filter(a => a.returnedDate).length} Returned
+                          </span>
+                        </div>
+                        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                          {historyAssignments.filter(a => a.returnedDate).length === 0 ? (
+                            <p className="text-slate-400 text-sm py-4 text-center">No previous ownership records.</p>
+                          ) : (
+                            historyAssignments.filter(a => a.returnedDate).map(a => (
+                              <div key={a._id} className="p-3 bg-slate-50/55 rounded-xl border border-slate-100 text-sm">
+                                <div className="flex justify-between font-semibold text-slate-700">
+                                  <span>{a.assetId?.name || "Unknown Asset"}</span>
+                                  <span className="text-xs text-slate-400 font-mono">{a.assetId?.assetId || ""}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1.5 flex justify-between">
+                                  <span>Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}</span>
+                                  <span className="text-green-600 font-medium">Returned: {a.returnedDate ? new Date(a.returnedDate).toLocaleDateString() : "—"}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Report History */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                          Reported Issues & Feedback
+                        </h4>
+                        <span className="text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-bold">
+                          {historyReports.length} Report{historyReports.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                        {historyReports.length === 0 ? (
+                          <p className="text-slate-400 text-sm py-4 text-center">No reports filed by this employee.</p>
+                        ) : (
+                          historyReports.map(r => (
+                            <div key={r._id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-slate-800">{r.assetId?.name || "Unknown Asset"}</span>
+                                  <span className="text-xs text-slate-400 font-mono">{r.assetId?.assetId || ""}</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                    r.type === 'damage' ? 'bg-red-100 text-red-800' :
+                                    r.type === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-slate-100 text-slate-800'
+                                  }`}>
+                                    {r.type}
+                                  </span>
+                                </div>
+                                <p className="text-slate-600 text-xs italic">"{r.message || "No description provided."}"</p>
+                              </div>
+                              <div className="text-left md:text-right text-xs text-slate-500 whitespace-nowrap min-w-max">
+                                <div className="font-medium">
+                                  Status: <span className={`font-semibold capitalize ${
+                                    r.status === 'resolved' ? 'text-green-600' :
+                                    r.status === 'in_progress' ? 'text-yellow-600' :
+                                    'text-red-500'
+                                  }`}>{r.status === 'resolved' ? 'Closed/Resolved' : r.status === 'in_progress' ? 'In Progress' : 'Open'}</span>
+                                </div>
+                                <div className="text-slate-400 mt-1">
+                                  {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end">
+                <button
+                  onClick={() => {
+                    setHistoryModalOpen(false);
+                    setHistoryEmployee(null);
+                  }}
+                  className="rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition shadow"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
     </div>
   );

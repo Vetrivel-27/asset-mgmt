@@ -587,7 +587,7 @@ function EmployeeAssets() {
       {/* Borrow Confirmation Modal */}
       {borrowModalOpen && selectedAsset && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 transition-all">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-4x00 transition-all">
             {/* Modal Header */}
             <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between">
               <div>

@@ -242,3 +242,77 @@ export const getAssetCategories = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const createAssetsBulk = async (req, res) => {
+  try {
+    const assetsData = req.body;
+    if (!Array.isArray(assetsData)) {
+      return res.status(400).json({ message: "Invalid payload: expected an array of assets" });
+    }
+
+    const createdAssets = [];
+    const errors = [];
+
+    for (let i = 0; i < assetsData.length; i++) {
+      const { name, type, purchaseDate, status } = assetsData[i];
+      let { assetId } = assetsData[i];
+
+      if (!name || !type) {
+        errors.push(`Row ${i + 1}: Name and Type are required.`);
+        continue;
+      }
+
+      if (purchaseDate) {
+        const purchaseDateVal = new Date(purchaseDate);
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (purchaseDateVal > today) {
+          errors.push(`Row ${i + 1}: Purchase date cannot be in the future.`);
+          continue;
+        }
+      }
+
+      if (!assetId || String(assetId).trim() === "") {
+        const prefix = (type || "GEN").slice(0, 3).toUpperCase();
+        const count = await Asset.countDocuments({ type });
+        let seq = count + 1 + createdAssets.filter(a => a.type === type).length;
+        assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
+        let assetExists = await Asset.findOne({ assetId, isDeleted: false });
+        while (assetExists) {
+          seq++;
+          assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
+          assetExists = await Asset.findOne({ assetId, isDeleted: false });
+        }
+      } else {
+        const assetExists = await Asset.findOne({ assetId, isDeleted: false });
+        if (assetExists) {
+          errors.push(`Row ${i + 1}: Asset ID ${assetId} already exists.`);
+          continue;
+        }
+      }
+
+      createdAssets.push({
+        name,
+        type,
+        assetId,
+        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+        status: status || "available",
+        createdBy: req.user.id,
+      });
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: "Validation errors in Excel rows", errors });
+    }
+
+    if (createdAssets.length === 0) {
+      return res.status(400).json({ message: "No valid assets found to upload" });
+    }
+
+    const result = await Asset.insertMany(createdAssets);
+    res.status(201).json({ message: `Successfully uploaded ${result.length} assets`, assets: result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error during bulk upload" });
+  }
+};

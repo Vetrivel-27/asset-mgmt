@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import CanAccess from "../CanAccess";
+import * as XLSX from "xlsx";
 
 const SEED_CATEGORIES = [
   "Laptop",
@@ -48,6 +49,136 @@ function AdminAssets() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+
+  // Excel upload states
+  const [showUpload, setShowUpload] = useState(false);
+  const [excelData, setExcelData] = useState([]);
+  const [excelError, setExcelError] = useState("");
+  const [excelSuccess, setExcelSuccess] = useState("");
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleExcelFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleExcelFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+
+        const parsed = json.map((row) => {
+          const keys = Object.keys(row);
+          const getVal = (possibleNames) => {
+            const foundKey = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
+            return foundKey ? row[foundKey] : undefined;
+          };
+
+          let purchaseDate = getVal(["purchasedate", "purchase date", "date", "purchase_date"]);
+          if (purchaseDate) {
+            if (typeof purchaseDate === "number") {
+              const dateObj = new Date((purchaseDate - 25569) * 86400 * 1000);
+              purchaseDate = dateObj.toISOString().split("T")[0];
+            } else {
+              try {
+                const dateObj = new Date(purchaseDate);
+                if (!isNaN(dateObj.getTime())) {
+                  purchaseDate = dateObj.toISOString().split("T")[0];
+                }
+              } catch (err) {}
+            }
+          }
+
+          return {
+            name: getVal(["name", "assetname", "asset name", "title"]),
+            type: getVal(["type", "category", "assettype", "asset type", "class"]),
+            assetId: getVal(["assetid", "asset id", "code", "id"]),
+            purchaseDate: purchaseDate || "",
+            status: getVal(["status", "assetstatus", "asset status", "condition"]) || "available",
+          };
+        });
+
+        const validParsed = parsed.filter(item => item.name || item.type);
+
+        if (validParsed.length === 0) {
+          setExcelError("No valid rows containing Asset Name and Type/Category were found in the excel file.");
+          setExcelData([]);
+        } else {
+          setExcelData(validParsed);
+          setExcelError("");
+        }
+      } catch (err) {
+        console.error(err);
+        setExcelError("Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.");
+        setExcelData([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleExcelSubmit = async (e) => {
+    e.preventDefault();
+    if (excelData.length === 0) return;
+
+    setUploadingExcel(true);
+    setExcelError("");
+    setExcelSuccess("");
+
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const res = await fetch(`${API_URL}/api/assets/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(excelData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.join("\n"));
+        }
+        throw new Error(data.message || "Failed to bulk upload assets.");
+      }
+
+      setExcelSuccess(data.message || `Successfully uploaded ${excelData.length} assets!`);
+      setExcelData([]);
+      await loadAssets();
+      await loadCategories();
+      setTimeout(() => {
+        setExcelSuccess("");
+        setShowUpload(false);
+      }, 3000);
+    } catch (err) {
+      setExcelError(err.message || "Failed to upload assets.");
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
 
   useEffect(() => {
     if (submitError) {
@@ -347,15 +478,38 @@ function AdminAssets() {
           </p>
         </div>
         <CanAccess permission="manage_asset">
-          <button
-            onClick={() => {
-              setShowForm((prev) => !prev);
-              resetForm();
-            }}
-            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 transition"
-          >
-            {showForm ? "Cancel" : "New Asset"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowForm((prev) => !prev);
+                setShowUpload(false);
+                resetForm();
+              }}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                showForm
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
+              }`}
+            >
+              {showForm ? "Cancel" : "New Asset"}
+            </button>
+            <button
+              onClick={() => {
+                setShowUpload((prev) => !prev);
+                setShowForm(false);
+                setExcelData([]);
+                setExcelError("");
+                setExcelSuccess("");
+              }}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                showUpload
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                  : "bg-slate-900 text-white hover:bg-slate-800"
+              }`}
+            >
+              {showUpload ? "Cancel" : "Upload Excel"}
+            </button>
+          </div>
         </CanAccess>
       </div>
 
@@ -366,7 +520,7 @@ function AdminAssets() {
       )}
 
       {submitError && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 shadow-sm">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 shadow-sm animate-shake">
           ⚠ {submitError}
         </div>
       )}
@@ -483,6 +637,125 @@ function AdminAssets() {
                 }}
                 disabled={submitting}
                 className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showUpload && (
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-900">Upload Assets via Excel</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Select or drag and drop an Excel file (.xlsx or .xls) to bulk import assets.
+          </p>
+
+          <form onSubmit={handleExcelSubmit} className="mt-5 space-y-4">
+            {/* Drag & Drop Zone */}
+            <div
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              className={`relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-8 text-center transition-all ${
+                dragActive
+                  ? "border-yellow-400 bg-yellow-50/50"
+                  : "border-slate-300 bg-slate-50 hover:bg-slate-100/70"
+              }`}
+            >
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => handleExcelFile(e.target.files[0])}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <svg
+                className="mx-auto h-12 w-12 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
+                />
+              </svg>
+              <p className="mt-4 text-sm font-semibold text-slate-700">
+                Drag and drop your Excel file here, or <span className="text-yellow-600 hover:text-yellow-700 underline">browse</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Supports .xlsx and .xls formats</p>
+            </div>
+
+            {/* Error & Success Messages within the component */}
+            {excelError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 shadow-sm animate-shake whitespace-pre-line">
+                ⚠ {excelError}
+              </div>
+            )}
+
+            {excelSuccess && (
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 shadow-sm">
+                ✓ {excelSuccess}
+              </div>
+            )}
+
+            {/* Data Preview */}
+            {excelData.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Preview: {excelData.length} Asset{excelData.length > 1 ? "s" : ""} detected
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExcelData([]);
+                      setExcelError("");
+                    }}
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                  >
+                    Clear File
+                  </button>
+                </div>
+                <div className="max-h-60 overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100 text-xs">
+                  {excelData.map((asset, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100">
+                      <div>
+                        <div className="font-semibold text-slate-900">{asset.name || "—"}</div>
+                        <div className="text-slate-500">Category: {asset.type || "—"}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-slate-700 font-medium">ID: {asset.assetId || "Auto-generated"}</div>
+                        <div className="text-slate-400">Date: {asset.purchaseDate || "—"}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={uploadingExcel || excelData.length === 0}
+                className="rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 disabled:opacity-50 transition"
+              >
+                {uploadingExcel ? "Uploading..." : "Confirm Upload"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExcelData([]);
+                  setExcelError("");
+                  setShowUpload(false);
+                }}
+                disabled={uploadingExcel}
+                className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
               >
                 Close
               </button>
