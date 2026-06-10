@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
+import { createPortal } from "react-dom";
 
 function AdminRequests() {
   const [requests, setRequests] = useState([]);
@@ -329,9 +330,9 @@ function AdminRequests() {
       </div>
 
       {/* Approval Assignment Modal */}
-      {approveModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+      {approveModalOpen && selectedRequest && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
             {/* Header */}
             <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
               <div>
@@ -433,7 +434,8 @@ function AdminRequests() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

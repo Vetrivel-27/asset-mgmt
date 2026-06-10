@@ -102,11 +102,15 @@ function AdminAssets() {
     });
   }, [assets, filter, statusFilter]);
 
-  const pageCount = Math.ceil(filteredAssets.length / pageSize);
+  const pageCount = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
   const currentPageAssets = filteredAssets.slice(
     (page - 1) * pageSize,
     page * pageSize,
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, statusFilter]);
 
   const resetForm = () => {
     setFormName("");
@@ -235,7 +239,7 @@ function AdminAssets() {
 
   const hasAssetChanges = useMemo(() => {
     if (!editAsset) return false;
-
+    
     let originalPurchaseDate = "";
     if (editAsset.purchaseDate) {
       const dateObj = new Date(editAsset.purchaseDate);
@@ -245,9 +249,8 @@ function AdminAssets() {
       originalPurchaseDate = `${year}-${month}-${day}`;
     }
 
-    const finalEditType =
-      editType === "CUSTOM_OPTION" ? editCustomType.trim() : editType;
-
+    const finalEditType = editType === "CUSTOM_OPTION" ? editCustomType.trim() : editType;
+    
     return (
       editName.trim() !== (editAsset.name || "") ||
       finalEditType !== (editAsset.type || "") ||
@@ -255,15 +258,7 @@ function AdminAssets() {
       editPurchaseDate !== originalPurchaseDate ||
       editStatus !== (editAsset.status || "available")
     );
-  }, [
-    editAsset,
-    editName,
-    editType,
-    editCustomType,
-    editAssetId,
-    editPurchaseDate,
-    editStatus,
-  ]);
+  }, [editAsset, editName, editType, editCustomType, editAssetId, editPurchaseDate, editStatus]);
 
   // Submit Edit Asset
   const handleEditSubmit = async (e) => {
@@ -524,25 +519,25 @@ function AdminAssets() {
         </div>
 
         <div className="mt-6 overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
+          <table className="min-w-full table-fixed divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
                   Asset Name
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
                   Asset ID
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
                   Category
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700">
                   Status
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
                   Assigned To
                 </th>
-                <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">
+                <th className="w-1/6 px-4 py-4 text-right text-sm font-semibold text-slate-700">
                   Actions
                 </th>
               </tr>
@@ -578,7 +573,7 @@ function AdminAssets() {
                     <td className="px-4 py-4 text-sm text-slate-500 capitalize">
                       {asset.type}
                     </td>
-                    <td className="px-4 py-4 text-sm">
+                    <td className="px-4 py-4 text-sm text-center">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border ${
                           asset.status === "available"
@@ -829,7 +824,7 @@ function AdminAssets() {
               </form>
             </div>
           </div>,
-          document.body,
+          document.body
         )}
 
       {/* Delete Confirmation Modal */}
@@ -928,7 +923,7 @@ function AdminAssets() {
               </div>
             </div>
           </div>,
-          document.body,
+          document.body
         )}
     </div>
   );

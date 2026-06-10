@@ -231,7 +231,7 @@ function DashboardLayout() {
           <header className="flex flex-shrink-0 items-center gap-4 bg-yellow-400 px-6 py-4 shadow-sm">
             <button
               onClick={() => setOpen(prev => !prev)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-slate-100"
+              className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-yellow-500"
               aria-label="Toggle sidebar"
             >
               <HamburgerIcon open={open} />

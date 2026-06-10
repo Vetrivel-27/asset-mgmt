@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
+import { createPortal } from "react-dom";
 
 // --- Dynamic Asset Thumbnail Finder ---
 const getThumbnail = (type) => {
@@ -590,7 +590,7 @@ function EmployeeAssets() {
       {/* Borrow Confirmation Modal */}
       {borrowModalOpen && selectedAsset && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 transition-all">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 transition-all">
             {/* Modal Header */}
             <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between">
               <div>
@@ -645,7 +645,7 @@ function EmployeeAssets() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Category
+                      Category / Type
                     </label>
                     <p className="text-xs font-bold text-slate-700 capitalize">
                       {selectedAsset.type}

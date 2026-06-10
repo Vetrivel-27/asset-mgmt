@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
@@ -24,19 +24,16 @@ function getAuthHeaders() {
 
 // ── Collapsible quick-action panel ──────────────────────────────────────────
 function QuickPanel({ open, children }) {
-  const ref = useRef(null);
-  const [height, setHeight] = useState(0);
-
-  useEffect(() => {
-    if (ref.current) setHeight(open ? ref.current.scrollHeight : 0);
-  }, [open, children]);
-
   return (
     <div
-      style={{ maxHeight: height, overflow: "hidden", transition: "max-height 0.35s ease" }}
+      className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      }`}
     >
-      <div ref={ref} className="pt-4">
-        {children}
+      <div className="overflow-hidden">
+        <div className="pt-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -80,6 +77,16 @@ function AddAssetForm({ onSuccess, onCancel }) {
     finally { setSubmitting(false); }
   };
 
+  const handleCancel = () => {
+    setName("");
+    setAssetId("");
+    setCategory("");
+    setCustomCat("");
+    setPurchaseDate("");
+    setError("");
+    onCancel();
+  };
+
   const inputCls = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -117,7 +124,7 @@ function AddAssetForm({ onSuccess, onCancel }) {
           className="rounded-xl bg-yellow-400 px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-yellow-300 disabled:opacity-50">
           {submitting ? "Adding…" : "Add Asset"}
         </button>
-        <button type="button" onClick={onCancel} disabled={submitting}
+        <button type="button" onClick={handleCancel} disabled={submitting}
           className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
           Cancel
         </button>
@@ -163,6 +170,16 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
     finally { setSubmitting(false); }
   };
 
+  const handleCancel = () => {
+    setName("");
+    setEmployeeId("");
+    setEmail("");
+    setDepartment("");
+    setRoleId("");
+    setError("");
+    onCancel();
+  };
+
   const inputCls = "w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100";
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -197,7 +214,7 @@ function RegisterEmployeeForm({ roles, onSuccess, onCancel }) {
           className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
           {submitting ? "Registering…" : "Register Employee"}
         </button>
-        <button type="button" onClick={onCancel} disabled={submitting}
+        <button type="button" onClick={handleCancel} disabled={submitting}
           className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
           Cancel
         </button>
