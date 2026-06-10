@@ -183,7 +183,7 @@ function AdminRoles() {
               <p className="text-sm text-slate-500">No roles found.</p>
             ) : (
               roles.map((role) => {
-                const isCore = role.name === "admin" || role.name === "employee";
+                const isCore = role.name.toLowerCase() === "admin";
                 return (
                   <div
                     key={role._id}

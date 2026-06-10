@@ -65,7 +65,8 @@ export const updateRole = async (req, res) => {
             return res.status(404).json({ message: "Role not found" });
         }
         
-        if (role.name === 'admin' || role.name === 'employee') {
+        const roleNameLower = role.name?.toLowerCase();
+        if (roleNameLower === 'admin') {
             return res.status(403).json({ message: "Cannot edit default core roles" });
         }
 
@@ -101,7 +102,8 @@ export const deleteRole = async (req, res) => {
             return res.status(404).json({ message: "Role not found" });
         }
 
-        if (role.name === 'admin' || role.name === 'employee') {
+        const roleNameLower = role.name?.toLowerCase();
+        if (roleNameLower === 'admin') {
             return res.status(403).json({ message: "Cannot delete core roles" });
         }
 

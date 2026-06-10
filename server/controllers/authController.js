@@ -13,8 +13,12 @@ export const register = async(req, res) => {
         }
         const saltRounds = 10;
         const hashedPwd = await bcrypt.hash(password, saltRounds);
+        let formattedUserId = String(userId || username || "").trim();
+        if (/^\d{1,4}$/.test(formattedUserId)) {
+            formattedUserId = formattedUserId.padStart(4, '0');
+        }
         const newUser = new User({
-            userId: userId || username, email, password: hashedPwd, role: roleId, createdBy: req.user.id
+            userId: formattedUserId, email, password: hashedPwd, role: roleId, createdBy: req.user?.id
         });
         await newUser.save();
         res.status(201).json({

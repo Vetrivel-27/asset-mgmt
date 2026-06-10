@@ -27,9 +27,19 @@ export const createEmployee = async (req, res) => {
   try {
     const { name, employeeId, department, email, roleId } = req.body;
 
+    // Format and validate employee ID
+    let formattedEmployeeId = String(employeeId || "").trim();
+    if (/^\d{1,4}$/.test(formattedEmployeeId)) {
+      formattedEmployeeId = formattedEmployeeId.padStart(4, "0");
+    }
+
+    if (!/^\d{4}$/.test(formattedEmployeeId)) {
+      return res.status(400).json({ message: "Employee ID must be a number up to 4 digits." });
+    }
+
     // Check if user with this email or userId already exists
     const userExists = await User.findOne({
-      $or: [{ userId: employeeId }, { email }],
+      $or: [{ userId: formattedEmployeeId }, { email }],
     });
     if (userExists) {
       return res
@@ -51,7 +61,7 @@ export const createEmployee = async (req, res) => {
     const hashedPassword = await bcrypt.hash("pass123", 10);
 
     const newUser = await User.create({
-      userId: employeeId,
+      userId: formattedEmployeeId,
       email,
       role: employeeRole._id,
       password: hashedPassword,
@@ -72,7 +82,7 @@ export const createEmployee = async (req, res) => {
     const message = `
             <h1>Asset Management System</h1>
             <p>Welcome, ${name}! Your account has been created.</p>
-            <p>Your User ID is: <strong>${employeeId}</strong></p>
+            <p>Your User ID is: <strong>${formattedEmployeeId}</strong></p>
             <p>Please click the link below to set your password:</p>
             <a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Set Password</a>
             <p>This link will expire in 24 hours.</p>
@@ -181,10 +191,29 @@ export const updateEmployee = async (req, res) => {
     // Update User fields (email, userId, and role live in User now!)
     if (req.body.email || req.body.employeeId || req.body.roleId) {
       const userUpdate = {};
-      if (req.body.email) userUpdate.email = req.body.email;
-      if (req.body.employeeId) userUpdate.userId = req.body.employeeId;
+      if (req.body.email) {
+        const emailExists = await User.findOne({ email: req.body.email, _id: { $ne: employee.userId }, isDeleted: false });
+        if (emailExists) {
+          return res.status(400).json({ message: "An employee with this email already exists." });
+        }
+        userUpdate.email = req.body.email;
+      }
+      if (req.body.employeeId) {
+        let formattedEmployeeId = String(req.body.employeeId).trim();
+        if (/^\d{1,4}$/.test(formattedEmployeeId)) {
+          formattedEmployeeId = formattedEmployeeId.padStart(4, "0");
+        }
+        if (!/^\d{4}$/.test(formattedEmployeeId)) {
+          return res.status(400).json({ message: "Employee ID must be a number up to 4 digits." });
+        }
+        const idExists = await User.findOne({ userId: formattedEmployeeId, _id: { $ne: employee.userId }, isDeleted: false });
+        if (idExists) {
+          return res.status(400).json({ message: "An employee with this ID already exists." });
+        }
+        userUpdate.userId = formattedEmployeeId;
+      }
       if (req.body.roleId) userUpdate.role = req.body.roleId;
-      await User.findByIdAndUpdate(employee.userId, userUpdate);
+      await User.findByIdAndUpdate(employee.userId, userUpdate, { runValidators: true });
     }
 
     const updatedEmployee = await employee.save();

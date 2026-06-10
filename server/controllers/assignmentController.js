@@ -1,6 +1,7 @@
 import Assignment from "../models/Assignment.js";
 import Asset from "../models/Asset.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 
 export const assignAsset = async (req, res) => {
   try {
@@ -18,10 +19,18 @@ export const assignAsset = async (req, res) => {
 
     // Check if asset and employee exist
     const asset = await Asset.findById(assetId);
-    const employee = await Employee.findById(employeeId);
+    const employee = await Employee.findById(employeeId).populate({
+      path: "userId",
+      populate: { path: "role" }
+    });
     if (!asset) return res.status(404).json({ message: "Asset not found" });
     if (!employee)
       return res.status(404).json({ message: "Employee not found" });
+
+    // Restrict assignment to users with admin roles
+    if (employee.userId && employee.userId.role && employee.userId.role.name.toLowerCase() === "admin") {
+      return res.status(400).json({ message: "Assets cannot be assigned to users with Admin roles." });
+    }
 
     // Check if asset is already assigned
     if (asset.status !== "available") {
@@ -117,6 +126,11 @@ export const borrowAsset = async (req, res) => {
           .status(400)
           .json({ message: "Return date cannot be in the past" });
       }
+    }
+
+    const user = await User.findById(req.user.id).populate("role");
+    if (user && user.role && user.role.name.toLowerCase() === "admin") {
+      return res.status(403).json({ message: "Users with Admin roles cannot borrow assets." });
     }
 
     const employee = await Employee.findOne({ userId: req.user.id });

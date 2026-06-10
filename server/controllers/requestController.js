@@ -1,5 +1,6 @@
 import Request from "../models/Request.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 
 //creation by employee
 export const createRequest = async (req, res) => {
@@ -15,6 +16,12 @@ export const createRequest = async (req, res) => {
           .json({ message: "Return date cannot be in the past" });
       }
     }
+
+    const user = await User.findById(req.user.id).populate("role");
+    if (user && user.role && user.role.name.toLowerCase() === "admin") {
+      return res.status(403).json({ message: "Users with Admin roles cannot request to borrow assets." });
+    }
+
     const employee = await Employee.findOne({
       userId: req.user.id,
     });
@@ -148,6 +155,14 @@ export const updateRequestStatus = async (req, res) => {
     }
     request.status = status;
     if (status === "approved" && assignedAssetId) {
+      const employee = await Employee.findById(request.employeeId).populate({
+        path: "userId",
+        populate: { path: "role" }
+      });
+      if (employee && employee.userId && employee.userId.role && employee.userId.role.name.toLowerCase() === "admin") {
+        return res.status(400).json({ message: "Assets cannot be assigned to users with Admin roles." });
+      }
+
       const Assignment = (await import("../models/Assignment.js")).default;
       const Asset = (await import("../models/Asset.js")).default;
 

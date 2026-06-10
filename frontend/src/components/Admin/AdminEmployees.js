@@ -82,9 +82,7 @@ function AdminEmployees() {
           if (Array.isArray(rolesData)) {
             setRoles(rolesData);
             setFormRoleId(
-              rolesData.find((role) => role.name === "employee")?._id ||
-                rolesData[0]?._id ||
-                "",
+              rolesData.find((role) => role.name.toLowerCase() === "employee")?._id || ""
             );
           }
         }
@@ -130,9 +128,7 @@ function AdminEmployees() {
     setFormEmployeeId("");
     setFormDepartment("");
     setFormRoleId(
-      roles.find((role) => role.name === "employee")?._id ||
-        roles[0]?._id ||
-        "",
+      roles.find((role) => role.name.toLowerCase() === "employee")?._id || ""
     );
     setSubmitError("");
     setSubmitSuccess("");
@@ -151,6 +147,16 @@ function AdminEmployees() {
       return;
     }
 
+    let formattedId = formEmployeeId.trim();
+    if (/^\d{1,4}$/.test(formattedId)) {
+      formattedId = formattedId.padStart(4, "0");
+    }
+
+    if (!/^\d{4}$/.test(formattedId)) {
+      setSubmitError("Employee ID must be a number up to 4 digits.");
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError("");
     setSubmitSuccess("");
@@ -159,7 +165,7 @@ function AdminEmployees() {
       const payload = {
         name: formName.trim(),
         email: formEmail.trim(),
-        employeeId: formEmployeeId.trim(),
+        employeeId: formattedId,
         department: formDepartment.trim(),
         roleId: formRoleId,
       };
@@ -229,6 +235,16 @@ function AdminEmployees() {
       return;
     }
 
+    let formattedId = editEmployeeId.trim();
+    if (/^\d{1,4}$/.test(formattedId)) {
+      formattedId = formattedId.padStart(4, "0");
+    }
+
+    if (!/^\d{4}$/.test(formattedId)) {
+      setSubmitError("Employee ID must be a number up to 4 digits.");
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError("");
     setSubmitSuccess("");
@@ -237,7 +253,7 @@ function AdminEmployees() {
       const payload = {
         name: editName.trim(),
         email: editEmail.trim(),
-        employeeId: editEmployeeId.trim(),
+        employeeId: formattedId,
         department: editDepartment.trim(),
         roleId: editRoleId,
       };
@@ -363,7 +379,7 @@ function AdminEmployees() {
               <input
                 value={formEmployeeId}
                 onChange={(e) => setFormEmployeeId(e.target.value)}
-                placeholder="e.g., EMP-001"
+                placeholder="e.g., 0001"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
               />
@@ -742,7 +758,7 @@ function AdminEmployees() {
                       required
                       value={editEmployeeId}
                       onChange={(e) => setEditEmployeeId(e.target.value)}
-                      placeholder="e.g., EMP-001"
+                      placeholder="e.g., 0001"
                       disabled={submitting}
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
                     />

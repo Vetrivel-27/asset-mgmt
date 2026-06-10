@@ -53,22 +53,7 @@ export const seedDatabase = async () => {
         name: "Admin",
         permissions: allPermissions.map((p) => p._id),
       });
-      // Employee Role
-      const employeePerms = allPermissions.filter((p) =>
-        [
-          "view_asset",
-          "borrow_asset",
-          "return_asset",
-          "view_inventory",
-          "report_damage",
-          "view_damage",
-        ].includes(p.name),
-      );
-      await Role.create({
-        name: "Employee",
-        permissions: employeePerms.map((p) => p._id),
-      });
-      console.log("Default roles created");
+      console.log("Default Admin role created");
     }
 
     // Seed Default Admin User
@@ -78,7 +63,7 @@ export const seedDatabase = async () => {
       const adminRole = await Role.findOne({ name: "Admin" });
       const hashedPassword = await bcrypt.hash("admin123", 10);
       adminUser = await User.create({
-        userId: "System Admin",
+        userId: "0000",
         email: "admin@test.com",
         password: hashedPassword,
         role: adminRole._id,

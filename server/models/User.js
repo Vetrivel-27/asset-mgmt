@@ -1,6 +1,16 @@
 import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
-    userId: { type: String, required: true, trim: true },
+    userId: { 
+        type: String, 
+        required: true, 
+        trim: true,
+        validate: {
+            validator: function(v) {
+                return /^\d{4}$/.test(v);
+            },
+            message: props => `${props.value} is not a valid 4-digit Employee ID!`
+        }
+    },
     email: { type: String, required: true, lowercase: true },
     password: { type: String, required: true },
     role: { type: mongoose.Schema.Types.ObjectId, ref:'Role', required: true},
