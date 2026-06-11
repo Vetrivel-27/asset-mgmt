@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
+import { hasPermission } from "../../permissions";
 
 function AdminReports() {
   const [assets, setAssets] = useState([]);
@@ -13,16 +14,23 @@ function AdminReports() {
     try {
       const token = sessionStorage.getItem("authToken");
       const headers = { Authorization: `Bearer ${token}` };
+      const canViewAssignments = hasPermission("view_assignments");
+      const canManageMaintenance = hasPermission("manage_maintenance");
+
       const [assetsRes, assignmentsRes, reportsRes] = await Promise.all([
         fetch(`${API_URL}/api/assets`, { headers }),
-        fetch(`${API_URL}/api/assignments`, { headers }),
-        fetch(`${API_URL}/api/reports`, { headers }),
+        canViewAssignments
+          ? fetch(`${API_URL}/api/assignments`, { headers })
+          : Promise.resolve(null),
+        canManageMaintenance
+          ? fetch(`${API_URL}/api/reports`, { headers })
+          : Promise.resolve(null),
       ]);
-      const [assetsData, assignmentsData, reportsData] = await Promise.all([
-        assetsRes.json(),
-        assignmentsRes.json(),
-        reportsRes.json()
-      ]);
+
+      const assetsData = await assetsRes.json();
+      const assignmentsData = assignmentsRes ? await assignmentsRes.json() : [];
+      const reportsData = reportsRes ? await reportsRes.json() : [];
+
       if (mounted) {
         setAssets(Array.isArray(assetsData) ? assetsData : []);
         setAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
@@ -47,6 +55,16 @@ function AdminReports() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && showAllReportsModal) {
+        setShowAllReportsModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAllReportsModal]);
 
   const handleStatusChange = async (reportId, newStatus) => {
     // newStatus is the actual backend value: 'open' | 'in_progress' | 'resolved'
@@ -142,107 +160,111 @@ function AdminReports() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <div
-          className="p-6 bg-white rounded-xl shadow-md cursor-pointer
-                    transition-all duration-300 ease-in-out
-                    hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-semibold text-slate-900">
-            Recently Assigned
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Latest asset assignments
-          </p>
+        {hasPermission("view_assignments") && (
+          <div
+            className="p-6 bg-white rounded-xl shadow-md cursor-pointer
+                      transition-all duration-300 ease-in-out
+                      hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h3 className="text-lg font-semibold text-slate-900">
+              Recently Assigned
+            </h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Latest asset assignments
+            </p>
 
-          {recentlyAssigned.length === 0 ? (
-            <div className="mt-6 text-sm text-slate-500">
-              No recent assignments.
-            </div>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {recentlyAssigned.map((r) => {
-                const asset = typeof r.assetId === "object" ? r.assetId : null;
-                const employee = typeof r.employeeId === "object" ? r.employeeId : null;
-                
-                const assetName = asset ? asset.name : (r.assetName || "Unknown asset");
-                const employeeName = employee ? employee.name : (r.assignedTo || "—");
-                const isReturned = !!r.returnedDate;
+            {recentlyAssigned.length === 0 ? (
+              <div className="mt-6 text-sm text-slate-500">
+                No recent assignments.
+              </div>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {recentlyAssigned.map((r) => {
+                  const asset = typeof r.assetId === "object" ? r.assetId : null;
+                  const employee = typeof r.employeeId === "object" ? r.employeeId : null;
+                  
+                  const assetName = asset ? asset.name : (r.assetName || "Unknown asset");
+                  const employeeName = employee ? employee.name : (r.assignedTo || "—");
+                  const isReturned = !!r.returnedDate;
 
-                return (
-                  <li
-                    key={r._id || r.id}
-                    className="flex items-start justify-between"
+                  return (
+                    <li
+                      key={r._id || r.id}
+                      className="flex items-start justify-between"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-slate-900">
+                          {assetName}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {employeeName} •{" "}
+                          {r.assignedDate
+                            ? new Date(r.assignedDate).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1">
+                        {isReturned ? "Returned" : "Active"}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {hasPermission("manage_maintenance") && (
+          <div
+            onClick={() => setShowAllReportsModal(true)}
+            className="p-6 bg-white rounded-xl shadow-md cursor-pointer
+                      transition-all duration-300 ease-in-out
+                      hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm flex flex-col"
+          >
+            <h3 className="text-lg font-semibold text-slate-900">
+              Employee Reports
+            </h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Damage & incident reports filed by borrowers
+            </p>
+
+            <div className="mt-6 flex-1 overflow-hidden">
+              <div className="text-3xl font-semibold text-slate-900 text-red-500">
+                {activeReportsCount}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">Total active reports</p>
+
+              <div className="mt-4 space-y-3">
+                {filedReports.slice(0, 4).map((r) => (
+                  <div
+                    key={r._id}
+                    className="flex items-start justify-between border-b border-slate-100 pb-2 last:border-0"
                   >
-                    <div>
-                      <div className="text-sm font-medium text-slate-900">
-                        {assetName}
+                    <div className="min-w-0 pr-2">
+                      <div className="text-sm font-medium text-slate-900 truncate">
+                        {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        {employeeName} •{" "}
-                        {r.assignedDate
-                          ? new Date(r.assignedDate).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                          : "—"}
+                      <div className="text-xs text-slate-500 truncate" title={r.message}>
+                        {r.employeeId?.name || "Unknown user"} • {r.message}
                       </div>
                     </div>
-                    <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1">
-                      {isReturned ? "Returned" : "Active"}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div
-          onClick={() => setShowAllReportsModal(true)}
-          className="p-6 bg-white rounded-xl shadow-md cursor-pointer
-                    transition-all duration-300 ease-in-out
-                    hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm flex flex-col"
-        >
-          <h3 className="text-lg font-semibold text-slate-900">
-            Employee Reports
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Damage & incident reports filed by borrowers
-          </p>
-
-          <div className="mt-6 flex-1 overflow-hidden">
-            <div className="text-3xl font-semibold text-slate-900 text-red-500">
-              {activeReportsCount}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">Total active reports</p>
-
-            <div className="mt-4 space-y-3">
-              {filedReports.slice(0, 4).map((r) => (
-                <div
-                  key={r._id}
-                  className="flex items-start justify-between border-b border-slate-100 pb-2 last:border-0"
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="text-sm font-medium text-slate-900 truncate">
-                      {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
-                    </div>
-                    <div className="text-xs text-slate-500 truncate" title={r.message}>
-                      {r.employeeId?.name || "Unknown user"} • {r.message}
+                    <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {r.type}
                     </div>
                   </div>
-                  <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {r.type}
+                ))}
+                {filedReports.length > 4 && (
+                  <div className="text-xs text-slate-500 text-center font-medium mt-2">
+                    +{filedReports.length - 4} more reports
                   </div>
-                </div>
-              ))}
-              {filedReports.length > 4 && (
-                <div className="text-xs text-slate-500 text-center font-medium mt-2">
-                  +{filedReports.length - 4} more reports
-                </div>
-              )}
-              {filedReports.length === 0 && (
-                <div className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4 text-center">No reports filed.</div>
-              )}
+                )}
+                {filedReports.length === 0 && (
+                  <div className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4 text-center">No reports filed.</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div
           className="p-6 bg-white rounded-xl shadow-md cursor-pointer
@@ -342,8 +364,14 @@ function AdminReports() {
 
       {/* Modal for All Reports */}
       {showAllReportsModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col">
+        <div
+          onClick={() => setShowAllReportsModal(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col"
+          >
             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
               <h3 className="text-2xl font-bold text-slate-900">All Employee Reports</h3>
               <button 

@@ -22,7 +22,7 @@ const ADMIN_NAV_ITEMS = [
   { to: "/dashboard/assets", label: "Assets", permission: "manage_asset" },
   { to: "/dashboard/employees", label: "Employees", permission: "view_users" },
   { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "assign_asset" },
+  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments" },
   { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"] },
   { to: "/dashboard/roles", label: "Roles", permission: "manage_roles" },
 ];
@@ -31,7 +31,7 @@ const EMPLOYEE_NAV_ITEMS = [
   { to: "/dashboard/my-assets", label: "Assets", permission: "view_asset", employeeOnly: true },
   { to: "/dashboard/status", label: "Status", permission: "return_asset", employeeOnly: true },
   { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "assign_asset" },
+  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments" },
   { to: "/dashboard/report", label: "Report Damage", permission: "report_damage", employeeOnly: true },
   { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"] },
   { to: "/dashboard/history", label: "History", permission: "view_asset", employeeOnly: true },

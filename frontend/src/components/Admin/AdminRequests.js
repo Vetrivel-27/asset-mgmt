@@ -62,6 +62,18 @@ function AdminRequests() {
     loadAvailableAssets();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && approveModalOpen) {
+        setApproveModalOpen(false);
+        setSelectedRequest(null);
+        setSelectedAssetId("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [approveModalOpen]);
+
   // Filter requests
   const filteredRequests = requests.filter((req) => {
     const statusMatches = statusFilter ? req.status === statusFilter : true;
@@ -331,8 +343,18 @@ function AdminRequests() {
 
       {/* Approval Assignment Modal */}
       {approveModalOpen && selectedRequest && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+        <div
+          onClick={() => {
+            setApproveModalOpen(false);
+            setSelectedRequest(null);
+            setSelectedAssetId("");
+          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black"
+          >
             {/* Header */}
             <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
               <div>

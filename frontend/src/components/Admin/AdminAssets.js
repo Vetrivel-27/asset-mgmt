@@ -128,6 +128,23 @@ function AdminAssets() {
     setPage(1);
   }, [filter, statusFilter]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (editModalOpen) {
+          setEditModalOpen(false);
+          setEditAsset(null);
+        }
+        if (deleteModalOpen) {
+          setDeleteModalOpen(false);
+          setAssetToDelete(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editModalOpen, deleteModalOpen]);
+
   const resetForm = () => {
     setFormName("");
     setFormCategory("");
@@ -703,8 +720,17 @@ function AdminAssets() {
       {editModalOpen &&
         editAsset &&
         createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+          <div
+            onClick={() => {
+              setEditModalOpen(false);
+              setEditAsset(null);
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black"
+            >
               {/* Header */}
               <div className="bg-black px-6 py-5 flex items-center justify-between text-white">
                 <div>
@@ -870,8 +896,17 @@ function AdminAssets() {
       {deleteModalOpen &&
         assetToDelete &&
         createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in">
+          <div
+            onClick={() => {
+              setDeleteModalOpen(false);
+              setAssetToDelete(null);
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in"
+            >
               {/* Header */}
               <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
                 <div>

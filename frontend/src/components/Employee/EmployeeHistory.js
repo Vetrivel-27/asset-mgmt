@@ -26,7 +26,7 @@ function EmployeeHistory() {
           fetch(`${API_URL}/api/requests/my-requests`, { headers: { Authorization: `Bearer ${token}` } })
         ];
 
-        const canViewDamage = hasPermission("view_damage");
+        const canViewDamage = hasPermission("view_my_damage");
         if (canViewDamage) {
           fetchPromises.push(
             fetch(`${API_URL}/api/reports/my-reports`, { headers: { Authorization: `Bearer ${token}` } })
@@ -59,6 +59,17 @@ function EmployeeHistory() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && sidebarOpen) {
+        setSidebarOpen(false);
+        setSelectedRecord(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sidebarOpen]);
 
   // Merge active/returned assignments, rejected requests, and damage reports
   const combinedHistory = useMemo(() => {
@@ -145,6 +156,9 @@ function EmployeeHistory() {
           </p>
         </div>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 w-full lg:w-auto">
+          {!hasPermission("view_my_damage") && (
+            <div className="hidden sm:block"></div>
+          )}
           <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
               Borrowed
@@ -169,7 +183,7 @@ function EmployeeHistory() {
               {stats.currentlyOwning}
             </p>
           </div>
-          {hasPermission("view_damage") && (
+          {hasPermission("view_my_damage") && (
             <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Damage Reports
@@ -203,7 +217,7 @@ function EmployeeHistory() {
               <option value="assigned">Assigned assets</option>
               <option value="returned">Returned assets</option>
               <option value="rejected">Requests declined</option>
-              {hasPermission("view_damage") && (
+              {hasPermission("view_my_damage") && (
                 <option value="reports">Reported damages</option>
               )}
             </select>

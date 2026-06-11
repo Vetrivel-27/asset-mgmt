@@ -9,22 +9,22 @@ export const seedDatabase = async () => {
     // Seed Permissions
     const permissionCount = await Permission.countDocuments();
     if (permissionCount === 0) {
-      const permissionsToCreate = [
-        { name: "view_asset", group: "Asset" },
-        { name: "manage_asset", group: "Asset" },
+    const permissionsToCreate = [
+      { name: "view_asset", group: "Asset" },
+      { name: "manage_asset", group: "Asset" },
 
-        { name: "borrow_asset", group: "Workflow" },
-        { name: "approve_borrow", group: "Workflow" },
-        { name: "return_asset", group: "Workflow" },
-        { name: "assign_asset", group: "Workflow" },
+      { name: "borrow_asset", group: "Workflow" },
+      { name: "approve_borrow", group: "Workflow" },
+      { name: "return_asset", group: "Workflow" },
+      { name: "assign_asset", group: "Workflow" },
 
-        // { name: "view_inventory", group: "Inventory" },
-        // { name: "manage_inventory", group: "Inventory" },
+      // { name: "view_inventory", group: "Inventory" },
+      // { name: "manage_inventory", group: "Inventory" },
+      { name: "view_assignments", group: "Workflow" },
 
-        { name: "report_damage", group: "Maintenance" },
-        { name: "view_damage", group: "Maintenance" },
-        { name: "manage_maintenance", group: "Maintenance" },
-        // { name: "manage_repair", group: "Maintenance" },
+      { name: "report_damage", group: "Maintenance" },
+      { name: "view_my_damage", group: "Maintenance" },
+      { name: "manage_maintenance", group: "Maintenance" },
 
         { name: "view_report", group: "Report" },
         // { name: "manage_report", group: "Report" },
@@ -33,23 +33,33 @@ export const seedDatabase = async () => {
         // { name: "send_notification", group: "Notification" },
         // { name: "view_notification", group: "Notification" },
 
-        { name: "manage_users", group: "Administration" },
-        { name: "view_users", group: "Administration" },
-        { name: "manage_roles", group: "Administration" },
+      { name: "manage_users", group: "Administration" },
+      { name: "view_users", group: "Administration" },
+      { name: "manage_roles", group: "Administration" },
         // { name: "manage_settings", group: "Administration" },
 
         // { name: "view_audit", group: "Audit" }
-      ];
-      const permissions = await Permission.insertMany(permissionsToCreate);
-      console.log(`Seeded ${permissions.length} permissions`);
+    ];
+
+    for (const perm of permissionsToCreate) {
+      await Permission.findOneAndUpdate(
+        { name: perm.name },
+        { $setOnInsert: perm },
+        { upsert: true }
+      );
     }
+    console.log("Permissions seeded/synced successfully");
 
     // Seed Roles
     const roleCount = await Role.countDocuments();
-    if (roleCount === 0) {
-      const allPermissions = await Permission.find();
-      // Admin Role
-      await Role.create({
+    const allPermissions = await Permission.find();
+    let adminRole = await Role.findOne({ name: "Admin" });
+    if (adminRole) {
+      adminRole.permissions = allPermissions.map((p) => p._id);
+      await adminRole.save();
+      console.log("Admin role permissions synced");
+    } else {
+      adminRole = await Role.create({
         name: "Admin",
         permissions: allPermissions.map((p) => p._id),
       });
@@ -85,7 +95,8 @@ export const seedDatabase = async () => {
         console.log("Default admin employee profile created");
       }
     }
-  } catch (err) {
+  }
+ } catch (err) {
     console.error("Database seeding failed:", err);
   }
 };

@@ -60,6 +60,10 @@ function AdminEmployees() {
   const [editCustomDepartment, setEditCustomDepartment] = useState("");
   const [editRoleId, setEditRoleId] = useState("");
 
+  // Delete Employee States
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+
   const dbDepartments = useMemo(() => {
     const deps = new Set(employees.map((emp) => emp.department).filter(Boolean));
     return Array.from(deps).sort();
@@ -116,6 +120,24 @@ function AdminEmployees() {
     loadEmployees();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (editModalOpen) {
+          setEditModalOpen(false);
+          setEditEmployee(null);
+          setSubmitError("");
+        }
+        if (deleteModalOpen) {
+          setDeleteModalOpen(false);
+          setEmployeeToDelete(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editModalOpen, deleteModalOpen]);
+
   const filteredEmployees = useMemo(() => {
     const term = filter.toLowerCase();
     return employees.filter((employee) => {
@@ -146,7 +168,9 @@ function AdminEmployees() {
     setFormDepartment("");
     setFormCustomDepartment("");
     setFormRoleId(
-      roles.find((role) => role.name.toLowerCase() === "employee")?._id || ""
+      roles.find((role) => role.name === "employee")?._id ||
+        roles[0]?._id ||
+        "",
     );
     setSubmitError("");
     setSubmitSuccess("");
@@ -311,11 +335,15 @@ function AdminEmployees() {
     }
   };
 
-  const handleDelete = async (employeeId) => {
-    if (!window.confirm("Are you sure you want to delete this employee?"))
-      return;
+  const handleDeleteClick = (employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!employeeToDelete) return;
     try {
-      const res = await fetch(`${API_URL}/api/employees/${employeeId}`, {
+      const res = await fetch(`${API_URL}/api/employees/${employeeToDelete._id}`, {
         method: "DELETE",
         headers: { ...getAuthHeaders() },
       });
@@ -323,7 +351,11 @@ function AdminEmployees() {
         const data = await res.json();
         throw new Error(data.message || "Failed to delete employee");
       }
-      setEmployees(employees.filter((item) => item._id !== employeeId));
+      setEmployees(employees.filter((item) => item._id !== employeeToDelete._id));
+      setSubmitSuccess(`Employee "${employeeToDelete.name}" removed successfully.`);
+      setTimeout(() => setSubmitSuccess(""), 3000);
+      setDeleteModalOpen(false);
+      setEmployeeToDelete(null);
     } catch (error) {
       console.error("Delete failed:", error);
       alert(error.message || "Failed to delete employee.");
@@ -687,7 +719,7 @@ function AdminEmployees() {
                               "admin@test.com" && (
                               <button
                                 type="button"
-                                onClick={() => handleDelete(employee._id)}
+                                onClick={() => handleDeleteClick(employee)}
                                 className="rounded-xl bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-200"
                               >
                                 Delete
@@ -728,8 +760,18 @@ function AdminEmployees() {
       {editModalOpen &&
         editEmployee &&
         createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+          <div
+            onClick={() => {
+              setEditModalOpen(false);
+              setEditEmployee(null);
+              setSubmitError("");
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black"
+            >
               {/* Header */}
               <div className="bg-black px-6 py-5 flex items-center justify-between text-white">
                 <div>
@@ -762,7 +804,7 @@ function AdminEmployees() {
               {/* Form */}
               <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
                 {submitError && (
-                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700">
+                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700 animate-shake">
                     {submitError}
                   </div>
                 )}
@@ -919,6 +961,130 @@ function AdminEmployees() {
             </div>
           </div>,
           document.body,
+        )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen &&
+        employeeToDelete &&
+        createPortal(
+          <div
+            onClick={() => {
+              setDeleteModalOpen(false);
+              setEmployeeToDelete(null);
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in"
+            >
+              {/* Header */}
+              <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
+                <div>
+                  <h3 className="font-bold text-lg">Delete Employee</h3>
+                  <p className="text-xs font-bold text-black mt-0.5">
+                    This action cannot be undone
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setEmployeeToDelete(null);
+                  }}
+                  className="text-yellow-400 hover:text-white rounded-full p-1 transition"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-3 text-red-500">
+                  <svg
+                    className="w-10 h-10 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Are you sure you want to permanently delete this employee?
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-1 text-sm text-slate-700">
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Name:{" "}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {employeeToDelete.name}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Email:{" "}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {employeeToDelete.email}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Employee ID:{" "}
+                    </span>
+                    <span className="font-mono font-bold text-slate-800">
+                      {employeeToDelete.employeeId}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Department:{" "}
+                    </span>
+                    <span className="font-bold text-slate-800 capitalize">
+                      {employeeToDelete.department || "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 shadow-sm"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteModalOpen(false);
+                      setEmployeeToDelete(null);
+                    }}
+                    className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
     </div>
   );
