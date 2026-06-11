@@ -60,6 +60,17 @@ function EmployeeHistory() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && sidebarOpen) {
+        setSidebarOpen(false);
+        setSelectedRecord(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sidebarOpen]);
+
   // Merge active/returned assignments, rejected requests, and damage reports
   const combinedHistory = useMemo(() => {
     const assignmentRecords = assignments.map((assignment) => {

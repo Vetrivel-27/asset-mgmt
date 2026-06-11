@@ -56,6 +56,16 @@ function AdminReports() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && showAllReportsModal) {
+        setShowAllReportsModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAllReportsModal]);
+
   const handleStatusChange = async (reportId, newStatus) => {
     // newStatus is the actual backend value: 'open' | 'in_progress' | 'resolved'
     const previousReports = [...filedReports];
@@ -354,8 +364,14 @@ function AdminReports() {
 
       {/* Modal for All Reports */}
       {showAllReportsModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col">
+        <div
+          onClick={() => setShowAllReportsModal(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col"
+          >
             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
               <h3 className="text-2xl font-bold text-slate-900">All Employee Reports</h3>
               <button 

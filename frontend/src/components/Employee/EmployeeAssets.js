@@ -243,6 +243,19 @@ function EmployeeAssets() {
     fetchAssets();
   }, [statusFilter, typeFilter, search, page, limit]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && borrowModalOpen) {
+        setBorrowModalOpen(false);
+        setSelectedAsset(null);
+        setTentativeReturnDate("");
+        setReason("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [borrowModalOpen]);
+
   // Handle Borrow Submission
   const handleBorrowSubmit = async (e) => {
     e.preventDefault();
@@ -586,8 +599,19 @@ function EmployeeAssets() {
 
       {/* Borrow Confirmation Modal */}
       {borrowModalOpen && selectedAsset && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 transition-all">
+        <div
+          onClick={() => {
+            setBorrowModalOpen(false);
+            setSelectedAsset(null);
+            setTentativeReturnDate("");
+            setReason("");
+          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 transition-all"
+          >
             {/* Modal Header */}
             <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between">
               <div>
