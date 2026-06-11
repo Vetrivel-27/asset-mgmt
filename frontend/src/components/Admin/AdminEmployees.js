@@ -103,7 +103,9 @@ function AdminEmployees() {
           if (Array.isArray(rolesData)) {
             setRoles(rolesData);
             setFormRoleId(
-              rolesData.find((role) => role.name.toLowerCase() === "employee")?._id || ""
+              rolesData.find((role) => role.name === "employee")?._id ||
+                rolesData[0]?._id ||
+                "",
             );
           }
         }
@@ -150,7 +152,9 @@ function AdminEmployees() {
     setFormDepartment("");
     setFormCustomDepartment("");
     setFormRoleId(
-      roles.find((role) => role.name.toLowerCase() === "employee")?._id || ""
+      roles.find((role) => role.name === "employee")?._id ||
+        roles[0]?._id ||
+        "",
     );
     setSubmitError("");
     setSubmitSuccess("");
@@ -744,7 +748,7 @@ function AdminEmployees() {
               {/* Form */}
               <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
                 {submitError && (
-                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700">
+                  <div className="rounded-2xl bg-red-100 p-4 text-sm text-red-700 animate-shake">
                     {submitError}
                   </div>
                 )}

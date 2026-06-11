@@ -6,6 +6,20 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const PERMISSION_DEPENDENCIES = {
+  borrow_asset: ["view_asset", "return_asset", "report_damage"],
+  return_asset: ["view_asset"],
+  report_damage: ["view_asset", "view_my_damage"],
+  view_my_damage: ["view_asset"],
+  manage_asset: ["view_asset"],
+  assign_asset: ["view_asset"],
+  approve_borrow: ["view_asset", "view_users"],
+  manage_maintenance: ["view_my_damage"],
+  manage_users: ["view_users"],
+  manage_roles: ["view_users"],
+  manage_report: ["view_report"],
+};
+
 function AdminRoles() {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
@@ -58,11 +72,65 @@ function AdminRoles() {
   }, []);
 
   const togglePermission = (permissionId) => {
-    setSelectedPermissions((current) =>
-      current.includes(permissionId)
-        ? current.filter((id) => id !== permissionId)
-        : [...current, permissionId],
-    );
+    const targetPerm = permissions.find((p) => p._id === permissionId);
+    if (!targetPerm) return;
+
+    const isSelecting = !selectedPermissions.includes(permissionId);
+
+    setSelectedPermissions((current) => {
+      let result = [...current];
+
+      if (isSelecting) {
+        // SELECTING: add target and all its dependencies recursively
+        const toAdd = new Set();
+
+        const collectDeps = (permName) => {
+          const deps = PERMISSION_DEPENDENCIES[permName] || [];
+          deps.forEach((depName) => {
+            const depPerm = permissions.find((p) => p.name === depName);
+            if (depPerm && !toAdd.has(depPerm._id) && !result.includes(depPerm._id)) {
+              toAdd.add(depPerm._id);
+              collectDeps(depName);
+            }
+          });
+        };
+
+        toAdd.add(permissionId);
+        collectDeps(targetPerm.name);
+
+        toAdd.forEach((id) => {
+          if (!result.includes(id)) {
+            result.push(id);
+          }
+        });
+      } else {
+        // DESELECTING: remove target and all its dependents recursively
+        const toRemove = new Set();
+
+        const collectDependents = (permName) => {
+          Object.entries(PERMISSION_DEPENDENCIES).forEach(([parentName, deps]) => {
+            if (deps.includes(permName)) {
+              const parentPerm = permissions.find((p) => p.name === parentName);
+              if (
+                parentPerm &&
+                !toRemove.has(parentPerm._id) &&
+                (result.includes(parentPerm._id) || parentPerm._id === permissionId)
+              ) {
+                toRemove.add(parentPerm._id);
+                collectDependents(parentName);
+              }
+            }
+          });
+        };
+
+        toRemove.add(permissionId);
+        collectDependents(targetPerm.name);
+
+        result = result.filter((id) => !toRemove.has(id));
+      }
+
+      return result;
+    });
   };
 
   const handleEditInit = (role) => {
