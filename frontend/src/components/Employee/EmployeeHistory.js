@@ -145,6 +145,9 @@ function EmployeeHistory() {
           </p>
         </div>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 w-full lg:w-auto">
+          {!hasPermission("view_my_damage") && (
+            <div className="hidden sm:block"></div>
+          )}
           <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
               Borrowed

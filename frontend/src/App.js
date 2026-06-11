@@ -45,7 +45,7 @@ function App() {
             <Route element={<PermissionRoute permission="view_users" />}>
               <Route path="employees" element={<AdminEmployees />} />
             </Route>
-            <Route element={<PermissionRoute permission={["assign_asset", "view_asset"]} />}>
+            <Route element={<PermissionRoute permission="view_assignments" />}>
               <Route path="assignments" element={<AdminAssignments />} />
             </Route>
             <Route element={<PermissionRoute permission={["view_report", "manage_maintenance"]} />}>
