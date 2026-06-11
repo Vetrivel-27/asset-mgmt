@@ -11,6 +11,7 @@ import assetReportRoutes from './routes/assetReportRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
+import bulkUploadRoutes from './routes/bulkUploadRoutes.js';
 // Route Imports
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use('/api/reports', assetReportRoutes)
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/bulk-upload', bulkUploadRoutes);
 connectDB().then(()=>{
     seedDatabase();
     app.listen(port, ()=>{

@@ -24,10 +24,10 @@ export const seedDatabase = async () => {
         { name: "report_damage", group: "Maintenance" },
         { name: "view_damage", group: "Maintenance" },
         { name: "manage_maintenance", group: "Maintenance" },
-        { name: "manage_repair", group: "Maintenance" },
+        // { name: "manage_repair", group: "Maintenance" },
 
         { name: "view_report", group: "Report" },
-        { name: "manage_report", group: "Report" },
+        // { name: "manage_report", group: "Report" },
         { name: "view_dashboard", group: "Report" },
 
         // { name: "send_notification", group: "Notification" },

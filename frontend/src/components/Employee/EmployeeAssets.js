@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 
@@ -199,7 +199,7 @@ function EmployeeAssets() {
   }, []);
 
   // Fetch Assets based on status, type, search, page and limit
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("authToken");
@@ -237,11 +237,11 @@ function EmployeeAssets() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, typeFilter, search, page, limit]);
 
   useEffect(() => {
     fetchAssets();
-  }, [statusFilter, typeFilter, search, page, limit]);
+  }, [fetchAssets]);
 
   // Handle Borrow Submission
   const handleBorrowSubmit = async (e) => {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import CanAccess from "../CanAccess";
+import BulkUploadForm from "./BulkUploadForm";
 
 const SEED_CATEGORIES = [
   "Laptop",
@@ -25,6 +26,7 @@ function AdminAssets() {
 
   // Form states (Add Asset)
   const [showForm, setShowForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [formName, setFormName] = useState("");
   const [formCategory, setFormCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -347,17 +349,40 @@ function AdminAssets() {
           </p>
         </div>
         <CanAccess permission="manage_asset">
-          <button
-            onClick={() => {
-              setShowForm((prev) => !prev);
-              resetForm();
-            }}
-            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 transition"
-          >
-            {showForm ? "Cancel" : "New Asset"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setShowBulkUpload((prev) => !prev);
+                setShowForm(false);
+                resetForm();
+              }}
+              className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            >
+              {showBulkUpload ? "Cancel" : "Bulk Upload"}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm((prev) => !prev);
+                setShowBulkUpload(false);
+                resetForm();
+              }}
+              className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 transition"
+            >
+              {showForm ? "Cancel" : "New Asset"}
+            </button>
+          </div>
         </CanAccess>
       </div>
+
+      <BulkUploadForm 
+        open={showBulkUpload} 
+        onClose={() => setShowBulkUpload(false)} 
+        onSuccess={() => {
+          loadAssets();
+          loadCategories();
+        }} 
+        type="assets" 
+      />
 
       {submitSuccess && (
         <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 shadow-sm">

@@ -7,9 +7,7 @@ function EmployeeReport() {
   const [reportType, setReportType] = useState("damage");
   const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
   const [comment, setComment] = useState("");
-  const [severity, setSeverity] = useState(60);
   const [sent, setSent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -63,13 +61,6 @@ function EmployeeReport() {
     }).filter((a) => a.assignmentId);
   }, [myAssignments]);
 
-  const selectedAsset = useMemo(
-    () =>
-      borrowedAssets.find(
-        (asset) => String(asset.assignmentId) === String(selectedAssignmentId),
-      ),
-    [borrowedAssets, selectedAssignmentId],
-  );
 
   const reportOptions = [
     { value: "damage", label: "Damaged" },
@@ -97,8 +88,6 @@ function EmployeeReport() {
       setError("Invalid asset selection.");
       return;
     }
-
-    setSubmitting(true);
     try {
       const token = sessionStorage.getItem("authToken");
       const res = await fetch(`${API_URL}/api/reports`, {
@@ -122,11 +111,8 @@ function EmployeeReport() {
       setComment("");
       setSelectedAssignmentId("");
       setReportType("damage");
-      setSeverity(60);
     } catch (err) {
       setError(err.message || "Something went wrong.");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -143,15 +129,6 @@ function EmployeeReport() {
               high-impact feedback signal to your admin team.
             </p>
           </div>
-          {/* <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
-              Pro tip
-            </p>
-            <p className="mt-2 text-sm text-slate-700">
-              Use the severity slider to highlight urgent issues like damage or
-              missing equipment.
-            </p>
-          </div> */}
         </div>
       </div>
 

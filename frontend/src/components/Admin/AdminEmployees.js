@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
+import BulkUploadForm from "./BulkUploadForm";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("authToken");
@@ -23,6 +24,7 @@ function AdminEmployees() {
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState("grid");
   const [showForm, setShowForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formEmployeeId, setFormEmployeeId] = useState("");
@@ -86,38 +88,32 @@ function AdminEmployees() {
     return avatarColors[Math.abs(hash) % avatarColors.length];
   };
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadEmployees() {
-      try {
-        const headers = getAuthHeaders();
-        const [employeesRes, rolesRes] = await Promise.all([
-          fetch(`${API_URL}/api/employees`, { headers }),
-          fetch(`${API_URL}/api/roles`, { headers }),
-        ]);
-        const data = await employeesRes.json();
-        const rolesData = await rolesRes.json();
-        if (mounted) {
-          setEmployees(Array.isArray(data) ? data.map(normalizeEmployee) : []);
-          if (Array.isArray(rolesData)) {
-            setRoles(rolesData);
-            setFormRoleId(
-              rolesData.find((role) => role.name.toLowerCase() === "employee")?._id || ""
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load employees", error);
-      } finally {
-        if (mounted) setLoading(false);
+  const loadEmployees = async () => {
+    try {
+      setLoading(true);
+      const headers = getAuthHeaders();
+      const [employeesRes, rolesRes] = await Promise.all([
+        fetch(`${API_URL}/api/employees`, { headers }),
+        fetch(`${API_URL}/api/roles`, { headers }),
+      ]);
+      const data = await employeesRes.json();
+      const rolesData = await rolesRes.json();
+      setEmployees(Array.isArray(data) ? data.map(normalizeEmployee) : []);
+      if (Array.isArray(rolesData)) {
+        setRoles(rolesData);
+        setFormRoleId(
+          rolesData.find((role) => role.name.toLowerCase() === "employee")?._id || ""
+        );
       }
+    } catch (error) {
+      console.error("Failed to load employees", error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadEmployees();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   const filteredEmployees = useMemo(() => {
@@ -344,17 +340,39 @@ function AdminEmployees() {
           </p>
         </div>
         <CanAccess permission="manage_users">
-          <button
-            onClick={() => {
-              setShowForm((current) => !current);
-              resetForm();
-            }}
-            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
-          >
-            {showForm ? "Cancel" : "New Employee"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setShowBulkUpload((prev) => !prev);
+                setShowForm(false);
+                resetForm();
+              }}
+              className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            >
+              {showBulkUpload ? "Cancel" : "Bulk Upload"}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm((current) => !current);
+                setShowBulkUpload(false);
+                resetForm();
+              }}
+              className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
+            >
+              {showForm ? "Cancel" : "New Employee"}
+            </button>
+          </div>
         </CanAccess>
       </div>
+
+      <BulkUploadForm 
+        open={showBulkUpload} 
+        onClose={() => setShowBulkUpload(false)} 
+        onSuccess={() => {
+          loadEmployees();
+        }} 
+        type="employees" 
+      />
 
       {submitSuccess && (
         <div className="rounded-2xl bg-green-100 p-4 text-sm text-green-700">
