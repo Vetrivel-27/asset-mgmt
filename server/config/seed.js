@@ -95,7 +95,8 @@ export const seedDatabase = async () => {
         console.log("Default admin employee profile created");
       }
     }
-  } catch (err) {
+  }
+ } catch (err) {
     console.error("Database seeding failed:", err);
   }
 };
