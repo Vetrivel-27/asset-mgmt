@@ -507,7 +507,7 @@ function AdminAssets() {
                   : "bg-slate-900 text-white hover:bg-slate-800"
               }`}
             >
-              {showUpload ? "Cancel" : "Upload Excel"}
+              {showUpload ? "Cancel" : "Upload"}
             </button>
           </div>
         </CanAccess>

@@ -8,6 +8,8 @@ function AdminReports() {
   const [filedReports, setFiledReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllReportsModal, setShowAllReportsModal] = useState(false);
+  const [reportFilter, setReportFilter] = useState("all");
+  const [reportTypeFilter, setReportTypeFilter] = useState("all");
 
   const fetchLatestData = async (mounted = true) => {
     try {
@@ -110,6 +112,17 @@ function AdminReports() {
   const activeReportsCount = useMemo(() => {
     return filedReports.filter(r => r.status !== 'resolved').length;
   }, [filedReports]);
+
+  const filteredReports = useMemo(() => {
+    let result = filedReports;
+    if (reportFilter !== "all") {
+      result = result.filter(r => r.status === reportFilter);
+    }
+    if (reportTypeFilter !== "all") {
+      result = result.filter(r => r.type === reportTypeFilter);
+    }
+    return result;
+  }, [filedReports, reportFilter, reportTypeFilter]);
 
   const recentlyAssigned = useMemo(() => {
     return assignments
@@ -347,15 +360,70 @@ function AdminReports() {
             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
               <h3 className="text-2xl font-bold text-slate-900">All Employee Reports</h3>
               <button 
-                onClick={() => setShowAllReportsModal(false)}
+                onClick={() => {
+                  setShowAllReportsModal(false);
+                  setReportFilter("all");
+                  setReportTypeFilter("all");
+                }}
                 className="text-slate-500 hover:text-slate-900 transition-colors"
                 aria-label="Close"
               >
                 ✕
               </button>
             </div>
+
+            {/* Status Filter Buttons + Type Dropdown */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "all", label: "All", count: filedReports.length },
+                  { id: "open", label: "Open", count: filedReports.filter(r => r.status === "open").length },
+                  { id: "in_progress", label: "In Progress", count: filedReports.filter(r => r.status === "in_progress").length },
+                  { id: "resolved", label: "Closed", count: filedReports.filter(r => r.status === "resolved").length },
+                ].map((btn) => (
+                  <button
+                    key={btn.id}
+                    onClick={() => setReportFilter(btn.id)}
+                    className={`rounded-2xl border px-4 py-2 text-xs font-semibold tracking-wide transition ${
+                      reportFilter === btn.id
+                        ? btn.id === "open"
+                          ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                          : btn.id === "in_progress"
+                            ? "bg-yellow-500 border-yellow-500 text-white shadow-sm"
+                            : btn.id === "resolved"
+                              ? "bg-green-600 border-green-600 text-white shadow-sm"
+                              : "bg-slate-900 border-slate-900 text-white shadow-sm"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {btn.label}
+                    <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      reportFilter === btn.id
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}>
+                      {btn.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Report Type Dropdown */}
+              <select
+                value={reportTypeFilter}
+                onChange={(e) => setReportTypeFilter(e.target.value)}
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 cursor-pointer"
+              >
+                <option value="all">All Types</option>
+                <option value="damage">Damaged</option>
+                <option value="lost">Lost</option>
+                
+                <option value="other">Other</option>
+              </select>
+            </div>
+
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-              {filedReports.map((r) => (
+              {filteredReports.map((r) => (
                 <div
                   key={r._id}
                   className="flex items-start justify-between border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 p-2 rounded-xl transition-colors"
@@ -389,8 +457,12 @@ function AdminReports() {
                   </div>
                 </div>
               ))}
-              {filedReports.length === 0 && (
-                <div className="text-center text-slate-500 py-12">No reports have been filed yet.</div>
+              {filteredReports.length === 0 && (
+                <div className="text-center text-slate-500 py-12">
+                  {reportFilter === "all"
+                    ? "No reports have been filed yet."
+                    : `No ${reportFilter === "open" ? "open" : reportFilter === "in_progress" ? "in-progress" : "closed"} reports found.`}
+                </div>
               )}
             </div>
           </div>

@@ -3,11 +3,11 @@ import { API_URL } from "../../config";
 
 function EmployeeReport() {
   const [myAssignments, setMyAssignments] = useState([]);
+  const [myReports, setMyReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState("damage");
   const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
   const [comment, setComment] = useState("");
-  const [severity, setSeverity] = useState(60);
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -26,26 +26,36 @@ function EmployeeReport() {
     }
   }, [sent]);
 
+  const loadData = async (mounted = true) => {
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const [assignmentsRes, reportsRes] = await Promise.all([
+        fetch(`${API_URL}/api/assignments/my-assignments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/api/reports/my-reports`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ]);
+      const assignmentsData = await assignmentsRes.json();
+      const reportsData = await reportsRes.json();
+      
+      if (!mounted) return;
+      
+      // Only show active (not yet returned) assignments for reporting
+      const active = (Array.isArray(assignmentsData) ? assignmentsData : []).filter((a) => !a.returnedDate);
+      setMyAssignments(active);
+      setMyReports(Array.isArray(reportsData?.reports) ? reportsData.reports : []);
+    } catch (err) {
+      console.error("Failed to load report assets", err);
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-    async function loadData() {
-      try {
-        const token = sessionStorage.getItem("authToken");
-        const res = await fetch(`${API_URL}/api/assignments/my-assignments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!mounted) return;
-        // Only show active (not yet returned) assignments for reporting
-        const active = (Array.isArray(data) ? data : []).filter((a) => !a.returnedDate);
-        setMyAssignments(active);
-      } catch (err) {
-        console.error("Failed to load report assets", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    loadData();
+    loadData(mounted);
     return () => { mounted = false; };
   }, []);
 
@@ -55,13 +65,26 @@ function EmployeeReport() {
       const asset = (typeof assignment.assetId === "object" && assignment.assetId !== null)
         ? assignment.assetId
         : {};
+
+      // Check if there is an existing report for this asset created after the assignment date
+      const reported = myReports.some((report) => {
+        const reportAssetId = report.assetId?._id || report.assetId;
+        const assignmentAssetId = asset._id;
+        if (String(reportAssetId) !== String(assignmentAssetId)) return false;
+        
+        const reportTime = new Date(report.createdAt).getTime();
+        const assignmentTime = new Date(assignment.assignedDate).getTime();
+        return reportTime >= assignmentTime;
+      });
+
       return {
         ...asset,
         assignmentId: assignment._id,
         assetId: asset.assetId || assignment._id,
+        alreadyReported: reported,
       };
     }).filter((a) => a.assignmentId);
-  }, [myAssignments]);
+  }, [myAssignments, myReports]);
 
   const selectedAsset = useMemo(
     () =>
@@ -98,6 +121,11 @@ function EmployeeReport() {
       return;
     }
 
+    if (assetToReport.alreadyReported) {
+      setError("You have already submitted a report for this asset during your current borrowing period.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem("authToken");
@@ -122,7 +150,7 @@ function EmployeeReport() {
       setComment("");
       setSelectedAssignmentId("");
       setReportType("damage");
-      setSeverity(60);
+      loadData(true);
     } catch (err) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -217,8 +245,12 @@ function EmployeeReport() {
                     >
                       <option value="">Choose an asset</option>
                       {borrowedAssets.map((asset) => (
-                        <option key={asset.assignmentId} value={asset.assignmentId}>
-                          {asset.name} — {asset.assetId}
+                        <option 
+                          key={asset.assignmentId} 
+                          value={asset.assignmentId}
+                          disabled={asset.alreadyReported}
+                        >
+                          {asset.name} — {asset.assetId} {asset.alreadyReported ? "(Already Reported)" : ""}
                         </option>
                       ))}
                     </select>

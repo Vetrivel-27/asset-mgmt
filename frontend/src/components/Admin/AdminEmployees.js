@@ -512,7 +512,7 @@ function AdminEmployees() {
                   : "bg-slate-900 text-white hover:bg-slate-800"
               }`}
             >
-              {showUpload ? "Cancel" : "Upload Excel"}
+              {showUpload ? "Cancel" : "Upload"}
             </button>
           </div>
         </CanAccess>
@@ -1195,7 +1195,7 @@ function AdminEmployees() {
         historyEmployee &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-4xl bg-white rounded-[32px] shadow-xl overflow-hidden border border-slate-200 max-h-[85vh] flex flex-col">
+            <div className="w-full max-w-4xl bg-white rounded-[32px] shadow-xl overflow-hidden border border-black max-h-[85vh] flex flex-col">
               {/* Header */}
               <div className="bg-slate-950 px-6 py-5 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">

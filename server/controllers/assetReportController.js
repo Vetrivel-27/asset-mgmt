@@ -15,6 +15,29 @@ export const createReport = async(req, res)=>{
         if(!employee){
             return res.status(404).json({message:"Employee not found"});
         }
+
+        const Assignment = (await import('../models/Assignment.js')).default;
+        const activeAssignment = await Assignment.findOne({
+            assetId: asset._id,
+            employeeId: employee._id,
+            returnedDate: null
+        });
+
+        if (!activeAssignment) {
+            return res.status(400).json({message:"You can only report assets that are currently assigned to you."});
+        }
+
+        // Check if employee has already filed a report for this asset during the current assignment
+        const existingReport = await AssetReport.findOne({
+            assetId: asset._id,
+            employeeId: employee._id,
+            createdAt: { $gte: activeAssignment.assignedDate }
+        });
+
+        if (existingReport) {
+            return res.status(400).json({message:"You have already submitted a report for this asset during your current borrowing period."});
+        }
+
         const report = await AssetReport.create({
             assetId, employeeId: employee._id, type, message
         });
@@ -111,10 +134,19 @@ export const updateReportStatus = async(req, res)=>{
         }
 
         if (status === 'resolved') {
-            // Mark asset as available again
             if (asset) {
-                asset.status = 'available';
+                asset.status = report.type === 'lost' ? 'found' : 'available';
                 await asset.save();
+            }
+
+            // Return any active assignment for this asset
+            const activeAssignment = await Assignment.findOne({
+                assetId: report.assetId._id || report.assetId,
+                returnedDate: null
+            });
+            if (activeAssignment) {
+                activeAssignment.returnedDate = new Date();
+                await activeAssignment.save();
             }
         }
 

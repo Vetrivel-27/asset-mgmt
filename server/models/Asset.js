@@ -5,7 +5,7 @@ const assetSchema = new mongoose.Schema({
     type: {type: String, required: true, trim: true},
     assetId: {type: String, required: true, trim: true},
     purchaseDate: { type: Date, required: true },
-    status: {type: String, enum: ['available', 'assigned', 'damaged', 'repair'], default: 'available' },
+    status: {type: String, enum: ['available', 'assigned', 'damaged', 'repair', 'found'], default: 'available' },
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null},
     isDeleted: {type: Boolean, default: false},
     deletedAt: {type: Date, default: null},

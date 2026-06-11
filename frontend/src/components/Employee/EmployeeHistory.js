@@ -163,7 +163,7 @@ function EmployeeHistory() {
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Currently Owning
+              Currently Borrowed
             </p>
             <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-500">
               {stats.currentlyOwning}
