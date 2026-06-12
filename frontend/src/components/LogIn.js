@@ -23,14 +23,16 @@ function LogIn({ onLogin }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || "Invalid email or password");
 
-      const roleName = data.user?.roleName?.toLowerCase();
-      if (!roleName) throw new Error("Login response did not include a role.");
+      // Defensively extract role — fall back to 'employee' if absent
+      const roleName = (data.user?.roleName || data.user?.role?.name || "employee").toLowerCase();
+      const permissions = Array.isArray(data.user?.permissions) ? data.user.permissions : [];
 
       sessionStorage.setItem("authToken", data.token);
       sessionStorage.setItem("userRole", roleName);
       sessionStorage.setItem("userEmail", data.user.email);
-      sessionStorage.setItem("userPermissions", JSON.stringify(data.user.permissions || []));
-      sessionStorage.setItem("userName", data.user.userId || data.user.email || "User");
+      sessionStorage.setItem("userPermissions", JSON.stringify(permissions));
+      sessionStorage.setItem("userName", data.user.name || data.user.userId || data.user.email || "User");
+      sessionStorage.setItem("userId", data.user.id || "");
       if (roleName !== "admin") sessionStorage.setItem("employeeEmail", data.user.email);
 
       navigate("/dashboard");
@@ -136,109 +138,92 @@ function LogIn({ onLogin }) {
       </div>
 
       {/* ── Right form panel ──────────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-12">
-        <div className="w-full max-w-sm animate-slide-up">
+      <div className="flex-1 flex items-center justify-center bg-yellow-400 px-6 py-12">
+        <div className="w-full max-w-sm bg-slate-100 rounded-tl-[150px] rounded-br-[150px] rounded-tr-none rounded-bl-none px-6 py-5 pb-6 shadow-[0_20px_50px_rgba(0,0,0,0.18)] animate-slide-up">
+          <div className="flex flex-col items-center w-full mt-4 mb-2">
+            
+            <img src="/esab-logo.png" alt="logo" className="h-16 w-auto mb-4" />
+            
+            <h1 className="text-2xl font-semibold text-slate-900 text-center">
+              Login Page
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 text-center">
+              Welcome
+            </p>
 
-          {/* Mobile brand */}
-          <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-400">
-              <svg className="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
-              </svg>
-            </div>
-            <span className="text-slate-900 font-bold text-lg">AMS</span>
+            <form onSubmit={handleSubmit} className="mt-5 flex flex-col items-center w-full">
+              <div className="w-[275px] space-y-5">
+                
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-700 ml-2 mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
+                  />
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-slate-700 ml-2 mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-16 text-sm text-slate-900 outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-4 flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  <div className="flex justify-end mt-1.5">
+                    <a
+                      href="/forgot-password"
+                      className="text-sm font-medium text-[#0066cc] hover:text-blue-700 transition-colors"
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
+                </div>
+
+                {/* Error Banner */}
+                {error && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex w-full justify-center pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-[150px] rounded-2xl bg-[#ffe200] px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-[#f4d400] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {loading ? "Logging in..." : "Log In"}
+                  </button>
+                </div>
+
+              </div>
+            </form>
           </div>
-
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
-          <p className="mt-1.5 text-sm text-slate-500">Sign in to your account to continue</p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-2">
-                Email address
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                  </svg>
-                </span>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-                  Password
-                </label>
-                <a href="/forgot-password" className="text-xs font-semibold text-yellow-600 hover:text-yellow-700 transition">
-                  Forgot password?
-                </a>
-              </div>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                </span>
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-16 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((p) => !p)}
-                  className="absolute inset-y-0 right-3.5 flex items-center text-xs font-semibold text-slate-400 hover:text-slate-700 transition"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-
-            {/* Error banner */}
-            {error && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 animate-fade-in">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                </svg>
-                {error}
-              </div>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-yellow-400 py-3.5 text-sm font-bold text-slate-900 shadow-md transition-all duration-200 hover:bg-yellow-300 hover:shadow-yellow-400/30 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Signing in…
-                </span>
-              ) : "Sign In →"}
-            </button>
-          </form>
         </div>
       </div>
     </div>

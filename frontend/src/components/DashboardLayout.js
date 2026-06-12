@@ -5,7 +5,7 @@ import { canAccess, canAccessAny, isAdmin } from "../permissions";
 
 /* ─── Animated hamburger icon ───────────────────────────────────────────────── */
 function HamburgerIcon({ open }) {
-  const bar = "block h-[2px] w-5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out";
+  const bar = "block h-[2px] w-5 rounded-full bg-slate-900 transition-all duration-300 ease-in-out";
   return (
     <span className="flex h-9 w-9 flex-col items-center justify-center gap-[5px]">
       <span className={bar} style={{ transform: open ? "translateY(7px) rotate(45deg)" : "none" }} />
@@ -309,10 +309,10 @@ function DashboardLayout() {
         <div className="flex flex-1 flex-col overflow-hidden">
 
           {/* Top bar */}
-          <header className="flex flex-shrink-0 items-center gap-4 bg-white border-b border-slate-200/80 px-6 py-3.5 shadow-sm">
+          <header className="flex flex-shrink-0 items-center gap-4 bg-yellow-400 px-6 py-3.5">
             <button
               onClick={() => setOpen(prev => !prev)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-900 transition-colors hover:bg-yellow-300"
               aria-label="Toggle sidebar"
             >
               <HamburgerIcon open={open} />
@@ -327,14 +327,14 @@ function DashboardLayout() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/>
                   </svg>
                 </div>
-                <span className="text-sm font-bold text-slate-800 tracking-wide">AMS</span>
+                <span className="text-sm font-bold text-slate-900 tracking-wide">AMS</span>
               </div>
             )}
 
             <div className="flex-1" />
 
             {/* Role badge */}
-            <span className="hidden sm:flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">
+            <span className="hidden sm:flex items-center gap-1.5 rounded-full border border-yellow-300 bg-yellow-300 px-3 py-1 text-xs font-semibold text-slate-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {adminUser ? "Admin" : "Employee"}
             </span>
@@ -343,7 +343,7 @@ function DashboardLayout() {
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 transition hover:bg-slate-100"
+                className="flex items-center gap-2.5 rounded-xl border border-yellow-300 bg-yellow-300 px-3 py-1.5 transition hover:bg-yellow-200"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 text-xs font-bold text-slate-900 shrink-0">
                   {initials || "U"}
@@ -371,6 +371,15 @@ function DashboardLayout() {
                   <p className="text-xs font-semibold text-slate-800 truncate">{profile.name}</p>
                   <p className="text-[10px] text-slate-400 capitalize mt-0.5">{profile.role || "user"}</p>
                 </div>
+                <button
+                  onClick={() => { setProfileDropdownOpen(false); navigate("/dashboard/profile"); }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  My Profile
+                </button>
                 <button
                   onClick={() => { sessionStorage.clear(); navigate("/login", { replace: true }); }}
                   className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"

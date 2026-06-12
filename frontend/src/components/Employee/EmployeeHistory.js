@@ -475,17 +475,16 @@ function EmployeeHistory() {
       {/* Slide-out Sidebar Drawer for Log Details */}
       {sidebarOpen && selectedRecord && createPortal(
         <div className="fixed inset-0 z-[100] flex justify-end">
-          {/* Backdrop */}
           <div
             onClick={() => {
               setSidebarOpen(false);
               setSelectedRecord(null);
             }}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-backdrop-in"
           ></div>
 
           {/* Drawer Body */}
-          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 border-l border-black">
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 animate-slide-left">
             {/* Header */}
             <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
               <div>
@@ -497,7 +496,7 @@ function EmployeeHistory() {
                   setSidebarOpen(false);
                   setSelectedRecord(null);
                 }}
-                className="text-slate-400 hover:text-white rounded-full p-1.5 hover:bg-slate-800 transition"
+                className="text-slate-400 hover:text-white rounded-full p-1.5 hover:bg-slate-700/50 transition-all duration-300 active:scale-90 hover:rotate-90"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <line x1="18" y1="6" x2="6" y2="18" />

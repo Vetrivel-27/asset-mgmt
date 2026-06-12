@@ -528,10 +528,10 @@ function AdminEmployees() {
                 setShowUpload(false);
                 resetForm();
               }}
-              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 active:scale-95 hover:-translate-y-0.5 ${
                 showForm
                   ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
+                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500 hover:shadow-lg hover:shadow-yellow-400/30"
               }`}
             >
               {showForm ? "Cancel" : "New Employee"}
@@ -544,10 +544,10 @@ function AdminEmployees() {
                 setExcelError("");
                 setExcelSuccess("");
               }}
-              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 active:scale-95 hover:-translate-y-0.5 ${
                 showUpload
                   ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                  : "bg-slate-900 text-white hover:bg-slate-800"
+                  : "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/30"
               }`}
             >
               {showUpload ? "Cancel" : "Upload"}
@@ -659,7 +659,7 @@ function AdminEmployees() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 transition-all duration-300 hover:bg-yellow-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-400/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? "Creating..." : "Add employee"}
               </button>
@@ -670,7 +670,7 @@ function AdminEmployees() {
                   setShowForm(false);
                 }}
                 disabled={submitting}
-                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Close
               </button>
@@ -777,7 +777,7 @@ function AdminEmployees() {
               <button
                 type="submit"
                 disabled={uploadingExcel || excelData.length === 0}
-                className="rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 disabled:opacity-50 transition"
+                className="rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-semibold text-slate-900 transition-all duration-300 hover:bg-yellow-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-400/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploadingExcel ? "Uploading..." : "Confirm Upload"}
               </button>
@@ -789,7 +789,7 @@ function AdminEmployees() {
                   setShowUpload(false);
                 }}
                 disabled={uploadingExcel}
-                className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
+                className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Close
               </button>

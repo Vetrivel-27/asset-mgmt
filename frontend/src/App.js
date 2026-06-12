@@ -17,6 +17,7 @@ import ProtectedRoute from "./components/ProtectedRoute.js";
 import PublicRoute from "./components/PublicRoute.js";
 import DashboardLayout from "./components/DashboardLayout.js";
 import PermissionRoute from "./components/PermissionRoute.js";
+import Profile from "./components/Profile.js";
 
 function App() {
   return (
@@ -64,6 +65,9 @@ function App() {
             <Route element={<PermissionRoute permission="report_damage" />}>
               <Route path="report" element={<EmployeeReport />} />
             </Route>
+
+            {/* Profile — accessible to all authenticated users */}
+            <Route path="profile" element={<Profile />} />
           </Route>
         </Route>
 

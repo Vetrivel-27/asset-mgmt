@@ -174,12 +174,24 @@ export const updateEmployee = async (req, res) => {
     if (!employee)
       return res.status(404).json({ message: "Employee not found" });
 
+    const user = await User.findById(employee.userId);
+
+    // --- Duplicate email guard ---
+    if (req.body.email && user && req.body.email !== user.email) {
+      const emailTaken = await User.findOne({
+        email: req.body.email,
+        _id: { $ne: user._id },
+      });
+      if (emailTaken) {
+        return res.status(400).json({ message: "Email address is already in use by another account." });
+      }
+    }
+
     employee.name = req.body.name || employee.name;
     employee.department = req.body.department || employee.department;
 
     if (req.body.email || req.body.employeeId || req.body.roleId) {
       const userUpdate = {};
-      const user = await User.findById(employee.userId);
 
       if (req.body.email && user.email !== req.body.email) {
         userUpdate.email = req.body.email;
@@ -377,5 +389,54 @@ export const createEmployeesBulk = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error during bulk employee upload" });
+  }
+};
+
+export const updateMyProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    const employee = await Employee.findOne({ userId: req.user.id });
+    if (!employee) return res.status(404).json({ message: "Employee profile not found" });
+
+    if (name) employee.name = name;
+    await employee.save();
+
+    if (email) {
+      await User.findByIdAndUpdate(req.user.id, { email });
+    }
+
+    const populated = await Employee.findById(employee._id).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+
+    res.json({ message: "Profile updated successfully", employee: populated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateMyPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ message: "Current and new password are required" });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) return res.status(401).json({ message: "Current password is incorrect" });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };

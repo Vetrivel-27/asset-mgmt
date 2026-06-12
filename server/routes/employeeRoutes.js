@@ -7,7 +7,9 @@ import {
     updateEmployee,
     deleteEmployee,
     getEmployeeProfile,
-    createEmployeesBulk
+    createEmployeesBulk,
+    updateMyProfile,
+    updateMyPassword
 } from '../controllers/employeeController.js';
 import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
@@ -15,14 +17,14 @@ const router = express.Router();
 
 // Current logged in employee's profile
 router.get('/me', verifyToken, getEmployeeProfile);
+router.patch('/me', verifyToken, updateMyProfile);
+router.patch('/me/password', verifyToken, updateMyPassword);
 
 router.post('/bulk', verifyToken, requirePermission('manage_users'), createEmployeesBulk);
 
 router.route('/')
     .post(verifyToken, requirePermission('manage_users'), createEmployee)
     .get(verifyToken, requirePermission('view_users'), getEmployees);
-
-router.get('/me', verifyToken, getMyEmployeeProfile);
 
 router.route('/:id')
     .get(verifyToken, requirePermission('view_users'), getEmployeeById)
