@@ -6,6 +6,39 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const PERMISSION_ORDER = [
+  "view_dashboard",
+  "view_asset",
+  "manage_asset",
+  "view_users",
+  "manage_users",
+  "assign_asset",
+  "return_asset",
+  "approve_borrow",
+  "borrow_asset",
+  "view_report",
+  "manage_report",
+  "manage_maintenance",
+  "report_damage",
+  "view_damage",
+  "manage_repair",
+  "manage_roles"
+];
+
+const sortPermissions = (perms) => {
+  return [...perms].sort((a, b) => {
+    const nameA = a.name || a;
+    const nameB = b.name || b;
+    const indexA = PERMISSION_ORDER.indexOf(nameA);
+    const indexB = PERMISSION_ORDER.indexOf(nameB);
+    
+    if (indexA === -1 && indexB === -1) return nameA.localeCompare(nameB);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+};
+
 function AdminRoles() {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
@@ -18,13 +51,20 @@ function AdminRoles() {
   const [error, setError] = useState("");
 
   const permissionGroups = useMemo(() => {
-    return permissions.reduce((groups, permission) => {
+    const groups = permissions.reduce((acc, permission) => {
       const group = permission.group || "Other";
       return {
-        ...groups,
-        [group]: [...(groups[group] || []), permission],
+        ...acc,
+        [group]: [...(acc[group] || []), permission],
       };
     }, {});
+    
+    Object.keys(groups).forEach(group => {
+      groups[group] = sortPermissions(groups[group]);
+    });
+    
+    // Sort groups themselves if needed, or just return
+    return groups;
   }, [permissions]);
 
   useEffect(() => {
@@ -213,7 +253,7 @@ function AdminRoles() {
                       )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {(role.permissions || []).map((permission) => (
+                      {sortPermissions(role.permissions || []).map((permission) => (
                         <span
                           key={permission._id || permission}
                           className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"

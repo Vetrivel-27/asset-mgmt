@@ -73,13 +73,34 @@ export const returnAsset = async (req, res) => {
 
 export const getAllAssignments = async (req, res) => {
   try {
-    const assignments = await Assignment.find({})
+    let assignments = await Assignment.find({})
       .populate("assetId", "name type assetId status")
+      .populate("createdBy", "userId email")
       .populate({
         path: "employeeId",
         select: "name department",
         populate: { path: "userId", select: "userId email" },
-      });
+      })
+      .lean();
+
+    const employees = await Employee.find({}).lean();
+    const employeeMap = {};
+    employees.forEach(emp => {
+      if (emp.userId) {
+        employeeMap[emp.userId.toString()] = emp.name;
+      }
+    });
+
+    assignments = assignments.map(a => {
+      if (a.createdBy && a.createdBy._id) {
+        const creatorName = employeeMap[a.createdBy._id.toString()];
+        if (creatorName) {
+          a.createdBy.name = creatorName;
+        }
+      }
+      return a;
+    });
+
     res.json(assignments);
   } catch (error) {
     console.error(error);

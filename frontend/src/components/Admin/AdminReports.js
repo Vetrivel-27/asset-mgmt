@@ -197,8 +197,15 @@ function AdminReports() {
                           : "—"}
                       </div>
                     </div>
-                    <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1">
-                      {isReturned ? "Returned" : "Active"}
+                    <div className="relative inline-block group">
+                      <div className="text-xs text-slate-700 rounded-full bg-slate-100 px-3 py-1 cursor-default">
+                        {isReturned ? "Returned" : "Active"}
+                      </div>
+                      {isReturned && (
+                        <div className="absolute bottom-full right-0 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-none group-hover:transition-all group-hover:duration-300 group-hover:delay-500 w-max bg-slate-800 text-white text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl z-10 pointer-events-none">
+                          {new Date(r.returnedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                      )}
                     </div>
                   </li>
                 );
@@ -289,7 +296,6 @@ function AdminReports() {
                       {a.type || "—"}
                     </div>
                   </div>
-                  <div className="text-xs text-green-600">Available</div>
                 </div>
               ))}
               {availableAssets.length > 4 && (
@@ -440,20 +446,30 @@ function AdminReports() {
                       Filed on: {new Date(r.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : r.type === 'lost' ? 'bg-purple-100 text-purple-700' : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    {/* Type Badge — fixed width */}
+                    <span className={`flex items-center justify-center w-24 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap ${
+                      r.type === 'damage' ? 'bg-red-100 text-red-700' 
+                      : r.type === 'lost' ? 'bg-purple-100 text-purple-700' 
+                      : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' 
+                      : 'bg-amber-100 text-amber-700'
+                    }`}>
                       {r.type}
+                    </span>
+                    {/* Status Selector — same fixed width */}
+                    <div className={`flex items-center justify-center w-24 rounded-full px-3 py-1.5 ${statusColor(r.status)} ${r.status === 'resolved' ? 'opacity-75' : ''}`}>
+                      <select
+                        value={r.status}
+                        onChange={(e) => handleStatusChange(r._id, e.target.value)}
+                        disabled={r.status === 'resolved'}
+                        className="w-full text-[10px] font-bold uppercase tracking-widest bg-transparent outline-none border-none appearance-none cursor-pointer disabled:cursor-not-allowed text-center"
+                        style={{ color: 'inherit' }}
+                      >
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Closed</option>
+                      </select>
                     </div>
-                    <select
-                      value={r.status}
-                      onChange={(e) => handleStatusChange(r._id, e.target.value)}
-                      disabled={r.status === 'resolved'}
-                      className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md outline-none border-none appearance-none ${statusColor(r.status)} ${r.status === 'resolved' ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <option value="open">Open</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="resolved">Closed</option>
-                    </select>
                   </div>
                 </div>
               ))}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
+import { canAccess } from "../../permissions";
+import AdminAssets from "../Admin/AdminAssets";
 
 // --- Dynamic Asset Thumbnail Finder ---
 const getThumbnail = (type) => {
@@ -145,6 +147,7 @@ const getThumbnail = (type) => {
 function EmployeeAssets() {
   const [assets, setAssets] = useState([]);
   const [types, setTypes] = useState([]);
+  const [showManageAssets, setShowManageAssets] = useState(false);
 
   // Filters & Pagination State
   const [searchQuery, setSearchQuery] = useState("");
@@ -299,16 +302,47 @@ function EmployeeAssets() {
     }
   };
 
+  if (showManageAssets && canAccess("manage_asset")) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Manage Asset Inventory
+          </h2>
+          <button
+            onClick={() => setShowManageAssets(false)}
+            className="rounded-2xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+          >
+            ← Back to Browse Mode
+          </button>
+        </div>
+        <AdminAssets />
+      </div>
+    );
+  }
+
+  const canBorrow = canAccess("borrow_asset");
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Available Assets
-        </h2>
-        <p className="text-sm text-slate-500">
-          Browse items in our inventory and request to borrow them instantly.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Available Assets
+          </h2>
+          <p className="text-sm text-slate-500">
+            Browse items in our inventory and request to borrow them instantly.
+          </p>
+        </div>
+        {canAccess("manage_asset") && (
+          <button
+            onClick={() => setShowManageAssets(true)}
+            className="rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition whitespace-nowrap"
+          >
+            Manage Assets →
+          </button>
+        )}
       </div>
 
       {/* Success/Error Feedback */}
@@ -510,10 +544,17 @@ function EmployeeAssets() {
                       {asset.status?.toLowerCase() === "available" ? (
                         <button
                           onClick={() => {
+                            if (!canBorrow) return;
                             setSelectedAsset(asset);
                             setBorrowModalOpen(true);
                           }}
-                          className="w-full rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-slate-900 shadow-sm transition hover:bg-yellow-500 focus:outline-none"
+                          disabled={!canBorrow}
+                          title={!canBorrow ? "You do not have permission to borrow assets" : "Borrow Asset"}
+                          className={`w-full rounded-2xl py-3 text-sm font-bold shadow-sm transition focus:outline-none ${
+                            canBorrow 
+                              ? "bg-yellow-400 text-slate-900 hover:bg-yellow-500" 
+                              : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                          }`}
                         >
                           Borrow Asset
                         </button>

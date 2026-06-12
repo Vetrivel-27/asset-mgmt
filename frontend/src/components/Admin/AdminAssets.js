@@ -24,6 +24,29 @@ function AdminAssets() {
   const [pageSize] = useState(6); // Pagination limit set to 6 per page
   const [loading, setLoading] = useState(true);
 
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    const isActive = sortConfig.key === columnKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <svg className="ml-1.5 w-3.5 h-3.5 inline-block" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L8 10H16L12 4Z" fill="currentColor" className={isAsc ? "text-slate-800" : "text-slate-300"} />
+        <path d="M12 20L16 14H8L12 20Z" fill="currentColor" className={isDesc ? "text-slate-800" : "text-slate-300"} />
+      </svg>
+    );
+  };
+
   // Form states (Add Asset)
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState("");
@@ -165,14 +188,11 @@ function AdminAssets() {
         throw new Error(data.message || "Failed to bulk upload assets.");
       }
 
-      setExcelSuccess(data.message || `Successfully uploaded ${excelData.length} assets!`);
+      setSubmitSuccess(data.message || `Successfully uploaded ${excelData.length} assets!`);
       setExcelData([]);
+      setShowUpload(false);
       await loadAssets();
       await loadCategories();
-      setTimeout(() => {
-        setExcelSuccess("");
-        setShowUpload(false);
-      }, 3000);
     } catch (err) {
       setExcelError(err.message || "Failed to upload assets.");
     } finally {
@@ -247,8 +267,31 @@ function AdminAssets() {
     });
   }, [assets, filter, statusFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
-  const currentPageAssets = filteredAssets.slice(
+  const sortedAssets = useMemo(() => {
+    let sortableItems = [...filteredAssets];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (sortConfig.key === 'assignedToName') {
+          aValue = a.assignedToName || "";
+          bValue = b.assignedToName || "";
+        }
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredAssets, sortConfig]);
+
+  const pageCount = Math.max(1, Math.ceil(sortedAssets.length / pageSize));
+  const currentPageAssets = sortedAssets.slice(
     (page - 1) * pageSize,
     page * pageSize,
   );
@@ -809,20 +852,35 @@ function AdminAssets() {
           <table className="min-w-full table-fixed divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Asset Name
+                <th 
+                  onClick={() => handleSort("name")}
+                  className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                >
+                  Asset Name <SortIcon columnKey="name" />
                 </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Asset ID
+                <th 
+                  onClick={() => handleSort("assetId")}
+                  className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                >
+                  Asset ID <SortIcon columnKey="assetId" />
                 </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Category
+                <th 
+                  onClick={() => handleSort("type")}
+                  className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                >
+                  Category <SortIcon columnKey="type" />
                 </th>
-                <th className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                  Status
+                <th 
+                  onClick={() => handleSort("status")}
+                  className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                >
+                  Status <SortIcon columnKey="status" />
                 </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Assigned To
+                <th 
+                  onClick={() => handleSort("assignedToName")}
+                  className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                >
+                  Assigned To <SortIcon columnKey="assignedToName" />
                 </th>
                 <th className="w-1/6 px-4 py-4 text-right text-sm font-semibold text-slate-700">
                   Actions
@@ -952,7 +1010,7 @@ function AdminAssets() {
         editAsset &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-black animate-modal-in">
               {/* Header */}
               <div className="bg-black px-6 py-5 flex items-center justify-between text-white">
                 <div>
@@ -1119,7 +1177,7 @@ function AdminAssets() {
         assetToDelete &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-modal-in">
               {/* Header */}
               <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
                 <div>

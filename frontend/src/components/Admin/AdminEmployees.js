@@ -23,6 +23,29 @@ function AdminEmployees() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState("grid");
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    const isActive = sortConfig.key === columnKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <svg className="ml-1.5 w-3.5 h-3.5 inline-block" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L8 10H16L12 4Z" fill="currentColor" className={isAsc ? "text-slate-800" : "text-slate-300"} />
+        <path d="M12 20L16 14H8L12 20Z" fill="currentColor" className={isDesc ? "text-slate-800" : "text-slate-300"} />
+      </svg>
+    );
+  };
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -134,13 +157,10 @@ function AdminEmployees() {
         throw new Error(data.message || "Failed to bulk upload employees.");
       }
 
-      setExcelSuccess(data.message || `Successfully uploaded ${excelData.length} employees!`);
+      setSubmitSuccess(data.message || `Successfully uploaded ${excelData.length} employees!`);
       setExcelData([]);
+      setShowUpload(false);
       await loadEmployees();
-      setTimeout(() => {
-        setExcelSuccess("");
-        setShowUpload(false);
-      }, 3000);
     } catch (err) {
       setExcelError(err.message || "Failed to upload employees.");
     } finally {
@@ -240,8 +260,26 @@ function AdminEmployees() {
     });
   }, [employees, filter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
-  const pageItems = filteredEmployees.slice(
+  const sortedEmployees = useMemo(() => {
+    let sortableItems = [...filteredEmployees];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key] || "";
+        let bValue = b[sortConfig.key] || "";
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredEmployees, sortConfig]);
+
+  const pageCount = Math.max(1, Math.ceil(sortedEmployees.length / pageSize));
+  const pageItems = sortedEmployees.slice(
     (page - 1) * pageSize,
     page * pageSize,
   );
@@ -898,20 +936,35 @@ function AdminEmployees() {
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Name
+                    <th 
+                      onClick={() => handleSort("name")}
+                      className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                    >
+                      Name <SortIcon columnKey="name" />
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Email
+                    <th 
+                      onClick={() => handleSort("email")}
+                      className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                    >
+                      Email <SortIcon columnKey="email" />
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Employee ID
+                    <th 
+                      onClick={() => handleSort("employeeId")}
+                      className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                    >
+                      Employee ID <SortIcon columnKey="employeeId" />
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Department
+                    <th 
+                      onClick={() => handleSort("department")}
+                      className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                    >
+                      Department <SortIcon columnKey="department" />
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Role
+                    <th 
+                      onClick={() => handleSort("roleName")}
+                      className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                    >
+                      Role <SortIcon columnKey="roleName" />
                     </th>
                     <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">
                       Action
@@ -1194,8 +1247,8 @@ function AdminEmployees() {
       {historyModalOpen &&
         historyEmployee &&
         createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="w-full max-w-4xl bg-white rounded-[32px] shadow-xl overflow-hidden border border-black max-h-[85vh] flex flex-col">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-backdrop-in">
+            <div className="w-full max-w-4xl bg-white rounded-[32px] shadow-xl overflow-hidden border border-black max-h-[85vh] min-h-[600px] flex flex-col animate-modal-in">
               {/* Header */}
               <div className="bg-slate-950 px-6 py-5 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">
@@ -1236,10 +1289,11 @@ function AdminEmployees() {
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50">
+              <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50 flex flex-col">
                 {loadingHistory ? (
-                  <div className="py-12 text-center text-slate-500 font-semibold">
-                    Loading history data...
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-500 font-semibold animate-pulse">
+                    <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-yellow-400 border-t-transparent mb-4"></div>
+                    <p>Loading history data...</p>
                   </div>
                 ) : (
                   <>
@@ -1268,9 +1322,15 @@ function AdminEmployees() {
                                   <span className="text-xs text-slate-400 font-mono">{a.assetId?.assetId || ""}</span>
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1 flex justify-between">
-                                  <span>Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}</span>
+                                  <span>
+                                    Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}
+                                    {a.assignedDate && <span className="block text-[10px] text-slate-400 mt-0.5">{new Date(a.assignedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
+                                  </span>
                                   {a.tentativeReturnDate && (
-                                    <span className="text-yellow-600 font-medium">Due: {new Date(a.tentativeReturnDate).toLocaleDateString()}</span>
+                                    <span className="text-yellow-600 font-medium text-right">
+                                      Due: {new Date(a.tentativeReturnDate).toLocaleDateString()}
+                                      <span className="block text-[10px] text-yellow-600/70 mt-0.5">{new Date(a.tentativeReturnDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -1301,8 +1361,14 @@ function AdminEmployees() {
                                   <span className="text-xs text-slate-400 font-mono">{a.assetId?.assetId || ""}</span>
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1.5 flex justify-between">
-                                  <span>Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}</span>
-                                  <span className="text-green-600 font-medium">Returned: {a.returnedDate ? new Date(a.returnedDate).toLocaleDateString() : "—"}</span>
+                                  <span>
+                                    Assigned: {a.assignedDate ? new Date(a.assignedDate).toLocaleDateString() : "—"}
+                                    {a.assignedDate && <span className="block text-[10px] text-slate-400 mt-0.5">{new Date(a.assignedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
+                                  </span>
+                                  <span className="text-green-600 font-medium text-right">
+                                    Returned: {a.returnedDate ? new Date(a.returnedDate).toLocaleDateString() : "—"}
+                                    {a.returnedDate && <span className="block text-[10px] text-green-600/70 mt-0.5">{new Date(a.returnedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
+                                  </span>
                                 </div>
                               </div>
                             ))

@@ -11,6 +11,29 @@ function EmployeeHistory() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
 
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    const isActive = sortConfig.key === columnKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <svg className="ml-1.5 w-3.5 h-3.5 inline-block" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L8 10H16L12 4Z" fill="currentColor" className={isAsc ? "text-slate-800" : "text-slate-300"} />
+        <path d="M12 20L16 14H8L12 20Z" fill="currentColor" className={isDesc ? "text-slate-800" : "text-slate-300"} />
+      </svg>
+    );
+  };
+
   // Sidebar / Logs Drawer State
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -110,6 +133,50 @@ function EmployeeHistory() {
       return name.includes(term) || id.includes(term);
     });
   }, [combinedHistory, search, typeFilter]);
+
+  const sortedHistory = useMemo(() => {
+    let sortableItems = [...filteredHistory];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aValue;
+        let bValue;
+
+        switch (sortConfig.key) {
+          case 'name':
+            aValue = a.asset?.name || a.assetType || "";
+            bValue = b.asset?.name || b.assetType || "";
+            break;
+          case 'assetId':
+            aValue = a.asset?.assetId || "";
+            bValue = b.asset?.assetId || "";
+            break;
+          case 'date':
+            aValue = new Date(a.assignedDate || a.createdAt || 0).getTime();
+            bValue = new Date(b.assignedDate || b.createdAt || 0).getTime();
+            break;
+          case 'returnedDate':
+            aValue = new Date(a.returnedDate || 0).getTime();
+            bValue = new Date(b.returnedDate || 0).getTime();
+            break;
+          case 'status':
+            aValue = statusLabel(a).text;
+            bValue = statusLabel(b).text;
+            break;
+          default:
+            aValue = "";
+            bValue = "";
+        }
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredHistory, sortConfig]);
 
   const stats = useMemo(() => {
     const total = combinedHistory.filter(r => r.recordType === 'assignment').length;
@@ -235,25 +302,40 @@ function EmployeeHistory() {
                 <table className="min-w-full divide-y divide-slate-200">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Asset Name
+                      <th 
+                        onClick={() => handleSort("name")}
+                        className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                      >
+                        Asset Name <SortIcon columnKey="name" />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Asset ID
+                      <th 
+                        onClick={() => handleSort("assetId")}
+                        className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                      >
+                        Asset ID <SortIcon columnKey="assetId" />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Date
+                      <th 
+                        onClick={() => handleSort("date")}
+                        className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                      >
+                        Date <SortIcon columnKey="date" />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Returned Date
+                      <th 
+                        onClick={() => handleSort("returnedDate")}
+                        className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                      >
+                        Returned Date <SortIcon columnKey="returnedDate" />
                       </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Status
+                      <th 
+                        onClick={() => handleSort("status")}
+                        className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                      >
+                        Status <SortIcon columnKey="status" />
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {filteredHistory.map((record) => {
+                    {sortedHistory.map((record) => {
                       const status = statusLabel(record);
                       return (
                         <tr
@@ -262,7 +344,7 @@ function EmployeeHistory() {
                             setSelectedRecord(record);
                             setSidebarOpen(true);
                           }}
-                          className="cursor-pointer hover:bg-slate-50 transition-colors"
+                          className="cursor-pointer hover:bg-slate-50 transition-all duration-200"
                         >
                           <td className="px-4 py-4 text-sm font-medium text-slate-900">
                             {record.asset?.name || record.assetType || "Unknown asset"}
@@ -271,23 +353,44 @@ function EmployeeHistory() {
                             {record.asset?.assetId || "—"}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.recordType === 'assignment' && record.assignedDate
-                              ? new Date(record.assignedDate).toLocaleDateString()
-                              : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
-                                ? new Date(record.createdAt).toLocaleDateString() 
-                                : "—"}
+                            <div>
+                              {record.recordType === 'assignment' && record.assignedDate
+                                ? new Date(record.assignedDate).toLocaleDateString()
+                                : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
+                                  ? new Date(record.createdAt).toLocaleDateString() 
+                                  : "—"}
+                            </div>
+                            {((record.recordType === 'assignment' && record.assignedDate) || record.createdAt) && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {new Date(record.assignedDate || record.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-500">
-                            {record.returnedDate
-                              ? new Date(record.returnedDate).toLocaleDateString()
-                              : "—"}
+                            <div>
+                              {record.returnedDate
+                                ? new Date(record.returnedDate).toLocaleDateString()
+                                : "—"}
+                            </div>
+                            {record.returnedDate && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {new Date(record.returnedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${status.classes}`}
-                            >
-                              {status.text}
-                            </span>
+                            <div className="relative inline-block group">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border cursor-default ${status.classes}`}
+                              >
+                                {status.text}
+                              </span>
+                              {record.returnedDate && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-none group-hover:transition-all group-hover:duration-300 group-hover:delay-500 w-max bg-slate-800 text-white text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl z-10 pointer-events-none">
+                                  {new Date(record.returnedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -298,7 +401,7 @@ function EmployeeHistory() {
 
               {/* Mobile Card View */}
               <div className="grid gap-4 md:hidden">
-                {filteredHistory.map((record) => {
+                {sortedHistory.map((record) => {
                   const status = statusLabel(record);
                   return (
                     <div
@@ -329,21 +432,35 @@ function EmployeeHistory() {
                           <p className="text-xs text-slate-400 font-medium">
                             {record.recordType === 'rejected_request' ? "Requested" : record.recordType === 'damage_report' ? "Reported" : "Borrowed"}
                           </p>
-                          <p className="mt-1 text-xs font-bold text-slate-700">
-                            {record.recordType === 'assignment' && record.assignedDate
-                              ? new Date(record.assignedDate).toLocaleDateString()
-                              : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
-                                ? new Date(record.createdAt).toLocaleDateString() 
-                                : "—"}
-                          </p>
+                          <div className="mt-1">
+                            <span className="text-xs font-bold text-slate-700 block">
+                              {record.recordType === 'assignment' && record.assignedDate
+                                ? new Date(record.assignedDate).toLocaleDateString()
+                                : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
+                                  ? new Date(record.createdAt).toLocaleDateString() 
+                                  : "—"}
+                            </span>
+                            {((record.recordType === 'assignment' && record.assignedDate) || record.createdAt) && (
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                {new Date(record.assignedDate || record.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                           <p className="text-xs text-slate-400 font-medium">Return</p>
-                          <p className="mt-1 text-xs font-bold text-slate-700">
-                            {record.returnedDate
-                              ? new Date(record.returnedDate).toLocaleDateString()
-                              : "—"}
-                          </p>
+                          <div className="mt-1">
+                            <span className="text-xs font-bold text-slate-700 block">
+                              {record.returnedDate
+                                ? new Date(record.returnedDate).toLocaleDateString()
+                                : "—"}
+                            </span>
+                            {record.returnedDate && (
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                {new Date(record.returnedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -418,7 +535,13 @@ function EmployeeHistory() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
                       <div>
                         <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Report Type</p>
-                        <p className="text-sm font-bold text-slate-800 capitalize">{selectedRecord.type || "General"}</p>
+                        <p className={`text-sm font-bold capitalize ${
+                          selectedRecord.type === 'damage' ? 'text-red-500' :
+                          selectedRecord.type === 'lost' ? 'text-orange-500' :
+                          'text-slate-800'
+                        }`}>
+                          {selectedRecord.type || "General"}
+                        </p>
                       </div>
                       <div className="pt-2 border-t border-slate-100">
                         <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Message / Details</p>

@@ -174,14 +174,49 @@ export const updateEmployee = async (req, res) => {
     if (!employee)
       return res.status(404).json({ message: "Employee not found" });
 
-    // Update Employee fields
     employee.name = req.body.name || employee.name;
     employee.department = req.body.department || employee.department;
 
-    // Update User fields (email, userId, and role live in User now!)
     if (req.body.email || req.body.employeeId || req.body.roleId) {
       const userUpdate = {};
-      if (req.body.email) userUpdate.email = req.body.email;
+      const user = await User.findById(employee.userId);
+
+      if (req.body.email && user.email !== req.body.email) {
+        userUpdate.email = req.body.email;
+        
+        const resetToken = crypto.randomBytes(20).toString("hex");
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(resetToken)
+          .digest("hex");
+          
+        userUpdate.resetPasswordToken = hashedToken;
+        userUpdate.resetPasswordExpires = Date.now() + 24 * 60 * 60 * 1000;
+        
+        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+        const message = `
+            <h1>Asset Management System</h1>
+            <p>Hello ${employee.name},</p>
+            <p>Your email address for your Asset Management account has been updated.</p>
+            <p>Please click the link below to verify your new email and set/update your password:</p>
+            <a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update Password</a>
+            <p>This link will expire in 24 hours.</p>
+        `;
+
+        try {
+          await sendEmail({
+            email: req.body.email,
+            subject: "Email Updated - Asset Management System",
+            html: message,
+          });
+          console.log(`Password reset email sent to updated address: ${req.body.email}`);
+        } catch (e) {
+          console.error("Failed to send email on update:", e);
+        }
+      } else if (req.body.email) {
+        userUpdate.email = req.body.email;
+      }
+
       if (req.body.employeeId) userUpdate.userId = req.body.employeeId;
       if (req.body.roleId) userUpdate.role = req.body.roleId;
       await User.findByIdAndUpdate(employee.userId, userUpdate);

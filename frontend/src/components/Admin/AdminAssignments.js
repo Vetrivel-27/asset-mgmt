@@ -25,6 +25,29 @@ function AdminAssignments() {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
+  const [sortConfig, setSortConfig] = useState({ key: "assignedDate", direction: "desc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    const isActive = sortConfig.key === columnKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <svg className="ml-1.5 w-3.5 h-3.5 inline-block" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L8 10H16L12 4Z" fill="currentColor" className={isAsc ? "text-slate-800" : "text-slate-300"} />
+        <path d="M12 20L16 14H8L12 20Z" fill="currentColor" className={isDesc ? "text-slate-800" : "text-slate-300"} />
+      </svg>
+    );
+  };
+
   const loadAssignments = async () => {
     try {
       const token = sessionStorage.getItem("authToken");
@@ -147,7 +170,7 @@ function AdminAssignments() {
     const today = new Date();
     const days = [];
     const dayOfWeek = today.getDay();
-    const totalDays = 53 * 7;
+    const totalDays = 26 * 7; // Approx 6 months
     const startDate = new Date(today);
     startDate.setDate(today.getDate() - totalDays + 1 + (6 - dayOfWeek));
 
@@ -226,8 +249,59 @@ function AdminAssignments() {
     });
   }, [assignments, filter, statusFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
-  const currentPageAssignments = filteredAssignments.slice((page - 1) * pageSize, page * pageSize);
+  const sortedAssignments = useMemo(() => {
+    let sortableItems = [...filteredAssignments];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aValue;
+        let bValue;
+        const getAsset = (asg) => typeof asg.assetId === 'object' ? asg.assetId : null;
+        const getEmp = (asg) => typeof asg.employeeId === 'object' ? asg.employeeId : null;
+        const getCreator = (asg) => typeof asg.createdBy === 'object' && asg.createdBy !== null ? (asg.createdBy.name || asg.createdBy.email || asg.createdBy.userId) : "";
+
+        switch (sortConfig.key) {
+          case 'assetName':
+            aValue = getAsset(a) ? getAsset(a).name : a.assetName || "";
+            bValue = getAsset(b) ? getAsset(b).name : b.assetName || "";
+            break;
+          case 'assignedTo':
+            aValue = getEmp(a) ? getEmp(a).name : a.assignedTo || "";
+            bValue = getEmp(b) ? getEmp(b).name : b.assignedTo || "";
+            break;
+          case 'assignedBy':
+            aValue = getCreator(a);
+            bValue = getCreator(b);
+            break;
+          case 'assignedDate':
+            aValue = new Date(a.assignedDate || 0).getTime();
+            bValue = new Date(b.assignedDate || 0).getTime();
+            break;
+          case 'dueDate':
+            aValue = new Date(a.tentativeReturnDate || 0).getTime();
+            bValue = new Date(b.tentativeReturnDate || 0).getTime();
+            break;
+          case 'status':
+            aValue = !!a.returnedDate ? "Returned" : "Active";
+            bValue = !!b.returnedDate ? "Returned" : "Active";
+            break;
+          default:
+            aValue = "";
+            bValue = "";
+        }
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredAssignments, sortConfig]);
+
+  const pageCount = Math.max(1, Math.ceil(sortedAssignments.length / pageSize));
+  const currentPageAssignments = sortedAssignments.slice((page - 1) * pageSize, page * pageSize);
   
   // reset page on filter change
   useEffect(() => {
@@ -368,7 +442,7 @@ function AdminAssignments() {
                 Assignment Frequency
               </h3>
               <p className="mt-2 text-sm text-slate-500">
-                Visualizing asset distribution patterns over the past year.
+                Visualizing asset distribution patterns over the past 6 months.
               </p>
               
               <div className="mt-6 flex flex-col gap-3">
@@ -386,10 +460,10 @@ function AdminAssignments() {
                           <div key={wIndex} className="flex flex-col gap-[3px]">
                             {week.map((day, dIndex) => {
                               let colorClass = "bg-slate-100 hover:bg-slate-200";
-                              if (day.count === 1) colorClass = "bg-yellow-100 hover:bg-yellow-250";
-                              else if (day.count === 2) colorClass = "bg-yellow-300 hover:bg-yellow-400";
-                              else if (day.count === 3) colorClass = "bg-yellow-500 hover:bg-yellow-600";
-                              else if (day.count >= 4) colorClass = "bg-amber-600 hover:bg-amber-700";
+                              if (day.count === 1) colorClass = "bg-green-200 hover:bg-green-300";
+                              else if (day.count === 2) colorClass = "bg-green-400 hover:bg-green-500";
+                              else if (day.count === 3) colorClass = "bg-green-600 hover:bg-green-700";
+                              else if (day.count >= 4) colorClass = "bg-green-800 hover:bg-green-900";
 
                               return (
                                 <div
@@ -414,10 +488,10 @@ function AdminAssignments() {
                   <div className="flex items-center gap-1.5">
                     <span>Less</span>
                     <div className="w-2.5 h-2.5 rounded-[2px] bg-slate-100" />
-                    <div className="w-2.5 h-2.5 rounded-[2px] bg-yellow-100" />
-                    <div className="w-2.5 h-2.5 rounded-[2px] bg-yellow-300" />
-                    <div className="w-2.5 h-2.5 rounded-[2px] bg-yellow-500" />
-                    <div className="w-2.5 h-2.5 rounded-[2px] bg-amber-600" />
+                    <div className="w-2.5 h-2.5 rounded-[2px] bg-green-200" />
+                    <div className="w-2.5 h-2.5 rounded-[2px] bg-green-400" />
+                    <div className="w-2.5 h-2.5 rounded-[2px] bg-green-600" />
+                    <div className="w-2.5 h-2.5 rounded-[2px] bg-green-800" />
                     <span>More</span>
                   </div>
                 </div>
@@ -475,20 +549,41 @@ function AdminAssignments() {
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="w-1/5 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                    Asset
+                  <th 
+                    onClick={() => handleSort("assetName")}
+                    className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Asset <SortIcon columnKey="assetName" />
                   </th>
-                  <th className="w-1/5 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                    Assigned To
+                  <th 
+                    onClick={() => handleSort("assignedTo")}
+                    className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Assigned To <SortIcon columnKey="assignedTo" />
                   </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Assigned Date
+                  <th 
+                    onClick={() => handleSort("assignedBy")}
+                    className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Assigned By <SortIcon columnKey="assignedBy" />
                   </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Due Date
+                  <th 
+                    onClick={() => handleSort("assignedDate")}
+                    className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Assigned Date <SortIcon columnKey="assignedDate" />
                   </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Status
+                  <th 
+                    onClick={() => handleSort("dueDate")}
+                    className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Due Date <SortIcon columnKey="dueDate" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort("status")}
+                    className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Status <SortIcon columnKey="status" />
                   </th>
                 </tr>
               </thead>
@@ -511,6 +606,9 @@ function AdminAssignments() {
                     ? employee.name
                     : assignment.assignedTo || "—";
                   const department = employee ? employee.department : "";
+                  const assignedBy = typeof assignment.createdBy === "object" && assignment.createdBy !== null
+                    ? (assignment.createdBy.name || assignment.createdBy.email || assignment.createdBy.userId)
+                    : "—";
 
                   const isReturned = !!assignment.returnedDate;
                   const dueDate = assignment.tentativeReturnDate;
@@ -524,43 +622,60 @@ function AdminAssignments() {
 
                   return (
                     <tr key={assignment._id || assignment.id}>
-                      <td className="px-4 py-4 text-sm">
-                        <div className="font-semibold text-slate-900">
+                      <td className="px-4 py-4 text-sm overflow-hidden">
+                        <div className="font-semibold text-slate-900 truncate" title={assetName}>
                           {assetName}
                         </div>
                         {assetCode && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 truncate" title={`ID: ${assetCode}`}>
                             ID: {assetCode}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm">
-                        <div className="font-medium text-slate-900">
+                      <td className="px-4 py-4 text-sm overflow-hidden">
+                        <div className="font-medium text-slate-900 truncate" title={employeeName}>
                           {employeeName}
                         </div>
                         {department && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 truncate" title={department}>
                             {department}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-center text-sm text-slate-500">
-                        {assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : "—"}
+                      <td className="px-4 py-4 text-sm text-slate-500 font-medium overflow-hidden">
+                        <div className="truncate" title={assignedBy}>
+                          {assignedBy}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-center text-sm text-slate-500">
-                        {dueDate ? new Date(dueDate).toLocaleDateString() : "—"}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-center">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
-                        >
-                          {statusText}
-                        </span>
-                        {isReturned && (
-                          <div className="mt-1 text-[10px] text-slate-400 font-medium">
-                            {new Date(assignment.returnedDate).toLocaleDateString()}
+                        <div>{assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : "—"}</div>
+                        {assignment.assignedDate && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {new Date(assignment.assignedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
                         )}
+                      </td>
+                      <td className="px-4 py-4 text-center text-sm text-slate-500">
+                        <div>{dueDate ? new Date(dueDate).toLocaleDateString() : "—"}</div>
+                        {dueDate && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {new Date(dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-center">
+                        <div className="relative inline-block group">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass} cursor-default`}
+                          >
+                            {statusText}
+                          </span>
+                          {isReturned && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-none group-hover:transition-all group-hover:duration-300 group-hover:delay-500 w-max bg-slate-800 text-white text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl z-10 pointer-events-none">
+                              {new Date(assignment.returnedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

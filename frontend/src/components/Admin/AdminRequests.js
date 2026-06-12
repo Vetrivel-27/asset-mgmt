@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 
@@ -8,6 +8,29 @@ function AdminRequests() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [search, setSearch] = useState("");
+
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    const isActive = sortConfig.key === columnKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <svg className="ml-1.5 w-3.5 h-3.5 inline-block" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L8 10H16L12 4Z" fill="currentColor" className={isAsc ? "text-slate-800" : "text-slate-300"} />
+        <path d="M12 20L16 14H8L12 20Z" fill="currentColor" className={isDesc ? "text-slate-800" : "text-slate-300"} />
+      </svg>
+    );
+  };
 
   // Approval Modal State
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -74,6 +97,50 @@ function AdminRequests() {
 
     return statusMatches && searchMatches;
   });
+
+  const sortedRequests = useMemo(() => {
+    let sortableItems = [...filteredRequests];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        let aValue;
+        let bValue;
+
+        switch(sortConfig.key) {
+          case 'employee':
+            aValue = a.employeeId?.name || "";
+            bValue = b.employeeId?.name || "";
+            break;
+          case 'info':
+            aValue = a.assetType || "";
+            bValue = b.assetType || "";
+            break;
+          case 'reason':
+            aValue = a.reason || "";
+            bValue = b.reason || "";
+            break;
+          case 'dates':
+            aValue = new Date(a.createdAt || 0).getTime();
+            bValue = new Date(b.createdAt || 0).getTime();
+            break;
+          case 'status':
+            aValue = a.status || "";
+            bValue = b.status || "";
+            break;
+          default:
+            aValue = "";
+            bValue = "";
+        }
+
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredRequests, sortConfig]);
 
   // Handle Approve Request Submit
   const handleApproveSubmit = async (e) => {
@@ -241,16 +308,41 @@ function AdminRequests() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Employee</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Requested Info</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Reason</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Dates</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
+                  <th 
+                    onClick={() => handleSort("employee")}
+                    className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Employee <SortIcon columnKey="employee" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort("info")}
+                    className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Requested Info <SortIcon columnKey="info" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort("reason")}
+                    className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Reason <SortIcon columnKey="reason" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort("dates")}
+                    className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Dates <SortIcon columnKey="dates" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort("status")}
+                    className="px-4 py-4 text-left text-sm font-semibold text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  >
+                    Status <SortIcon columnKey="status" />
+                  </th>
                   <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredRequests.map((req) => (
+                {sortedRequests.map((req) => (
                   <tr key={req._id}>
                     <td className="px-4 py-4 text-sm">
                       <div className="font-bold text-slate-900">{req.employeeId?.name || "Unknown"}</div>
@@ -280,17 +372,22 @@ function AdminRequests() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border ${
-                          req.status === "pending"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : req.status === "approved"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {req.status}
-                      </span>
+                      <div className="relative inline-block group">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border cursor-default ${
+                            req.status === "pending"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : req.status === "approved"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-none group-hover:transition-all group-hover:duration-300 group-hover:delay-500 w-max bg-slate-800 text-white text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl z-10 pointer-events-none">
+                          {new Date(req.updatedAt || req.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right text-sm">
                       {req.status === "pending" ? (

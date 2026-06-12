@@ -39,9 +39,7 @@ function App() {
             <Route element={<PermissionRoute permission="approve_borrow" />}>
               <Route path="requests" element={<AdminRequests />} />
             </Route>
-            <Route element={<PermissionRoute permission="manage_asset" />}>
-              <Route path="assets" element={<AdminAssets />} />
-            </Route>
+
             <Route element={<PermissionRoute permission="view_users" />}>
               <Route path="employees" element={<AdminEmployees />} />
             </Route>
@@ -57,7 +55,7 @@ function App() {
 
             {/* Employee-focused routes */}
             <Route element={<PermissionRoute permission="view_asset" />}>
-              <Route path="my-assets" element={<EmployeeAssets />} />
+              <Route path="assets" element={<EmployeeAssets />} />
               <Route path="history" element={<EmployeeHistory />} />
             </Route>
             <Route element={<PermissionRoute permission="return_asset" />}>
