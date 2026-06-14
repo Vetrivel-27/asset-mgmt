@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 import BulkUploadForm from "./BulkUploadForm";
+import SortableHeader from "../SortableHeader";
+import { useTableSort } from "../../hooks/useTableSort";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("authToken");
@@ -149,8 +151,10 @@ function AdminEmployees() {
     });
   }, [employees, filter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
-  const pageItems = filteredEmployees.slice(
+  const { items: sortedEmployees, requestSort, sortConfig } = useTableSort(filteredEmployees, { key: 'name', direction: 'asc' });
+
+  const pageCount = Math.max(1, Math.ceil(sortedEmployees.length / pageSize));
+  const pageItems = sortedEmployees.slice(
     (page - 1) * pageSize,
     page * pageSize,
   );
@@ -660,25 +664,15 @@ function AdminEmployees() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200">
+              <table className="min-w-full table-fixed divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Name
-                    </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Email
-                    </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Employee ID
-                    </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Department
-                    </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                      Role
-                    </th>
-                    <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">
+                    <SortableHeader label="Name" sortKey="name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                    <SortableHeader label="Email" sortKey="email" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                    <SortableHeader label="Employee ID" sortKey="employeeId" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                    <SortableHeader label="Department" sortKey="department" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                    <SortableHeader label="Role" sortKey="userId.role.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                    <th className="w-1/6 px-4 py-4 text-right text-sm font-semibold text-slate-700">
                       Action
                     </th>
                   </tr>
@@ -690,22 +684,22 @@ function AdminEmployees() {
                         employee._id || employee.employeeId || employee.email
                       }
                     >
-                      <td className="px-4 py-4 text-sm text-slate-900">
+                      <td className="px-4 py-4 text-sm text-center text-slate-900 w-1/6 truncate">
                         {employee.name || "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm text-slate-500">
+                      <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/6 truncate">
                         {employee.email || "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm text-slate-500">
+                      <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/6 truncate">
                         {employee.employeeId || "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm text-slate-500">
+                      <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/6 truncate">
                         {employee.department || "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm capitalize text-slate-500">
+                      <td className="px-4 py-4 text-sm text-center capitalize text-slate-500 w-1/6 truncate">
                         {employee.roleName || "—"}
                       </td>
-                      <td className="px-4 py-4 text-right text-sm">
+                      <td className="px-4 py-4 text-right text-sm w-1/6 truncate">
                         <CanAccess permission="manage_users">
                           <div className="flex items-center justify-end gap-2">
                             <button

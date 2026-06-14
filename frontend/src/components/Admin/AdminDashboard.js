@@ -403,8 +403,7 @@ function AdminDashboard() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="group cursor-pointer rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm
-                       transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            className="group cursor-default rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
           >
             <div className={`mb-4 ${card.color}`}>
               <Icon d={card.icon} />

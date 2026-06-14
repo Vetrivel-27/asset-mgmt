@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
+import { canAccess } from "../../permissions";
+import AdminAssets from "../Admin/AdminAssets";
 
 // --- Dynamic Asset Thumbnail Finder ---
 const getThumbnail = (type) => {
@@ -145,6 +147,7 @@ const getThumbnail = (type) => {
 function EmployeeAssets() {
   const [assets, setAssets] = useState([]);
   const [types, setTypes] = useState([]);
+  const [viewMode, setViewMode] = useState("borrow"); // "borrow" or "manage"
 
   // Filters & Pagination State
   const [searchQuery, setSearchQuery] = useState("");
@@ -303,6 +306,7 @@ function EmployeeAssets() {
       setTentativeReturnDate("");
       setReason("");
       fetchAssets(); // Refresh asset lists
+      window.dispatchEvent(new Event("request_status_changed"));
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {
       setErrorMsg(err.message || "Error submitting request.");
@@ -312,16 +316,32 @@ function EmployeeAssets() {
     }
   };
 
+  if (viewMode === "manage" && canAccess("manage_asset")) {
+    return (
+      <AdminAssets onReturnToCatalogue={() => setViewMode("borrow")} />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Available Assets
-        </h2>
-        <p className="text-sm text-slate-500">
-          Browse items in our inventory and request to borrow them instantly.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Available Assets
+          </h2>
+          <p className="text-sm text-slate-500">
+            Browse items in our inventory and request to borrow them instantly.
+          </p>
+        </div>
+        {canAccess("manage_asset") && (
+          <button
+            onClick={() => setViewMode("manage")}
+            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-yellow-500 transition shadow-sm"
+          >
+            Manage Assets →
+          </button>
+        )}
       </div>
 
       {/* Success/Error Feedback */}

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 import { useMemo } from "react";
+import { useTableSort } from "../../hooks/useTableSort";
+import SortableHeader from "../SortableHeader";
+import Tooltip from "../Tooltip";
 
 function AdminAssignments() {
   const [assignments, setAssignments] = useState([]);
@@ -164,8 +167,10 @@ function AdminAssignments() {
     });
   }, [assignments, filter, statusFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
-  const currentPageAssignments = filteredAssignments.slice((page - 1) * pageSize, page * pageSize);
+  const { items: sortedAssignments, requestSort, sortConfig } = useTableSort(filteredAssignments, { key: 'assignedDate', direction: 'desc' });
+
+  const pageCount = Math.max(1, Math.ceil(sortedAssignments.length / pageSize));
+  const currentPageAssignments = sortedAssignments.slice((page - 1) * pageSize, page * pageSize);
   
   // reset page on filter change
   useEffect(() => {
@@ -345,21 +350,12 @@ function AdminAssignments() {
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="w-1/5 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                    Asset
-                  </th>
-                  <th className="w-1/5 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                    Assigned To
-                  </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Assigned Date
-                  </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Due Date
-                  </th>
-                  <th className="w-1/5 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                    Status
-                  </th>
+                  <SortableHeader label="Asset" sortKey="assetId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Assigned To" sortKey="employeeId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Assigned By" sortKey="createdBy.userId" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Assigned Date" sortKey="assignedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
+                  <SortableHeader label="Due Date" sortKey="tentativeReturnDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
+                  <SortableHeader label="Status" sortKey="returnedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -392,44 +388,62 @@ function AdminAssignments() {
                     badgeClass = "bg-green-100 text-green-700";
                   }
 
+                  const assignerEmp = assignment.assignerEmployee;
+                  const createdByObj = typeof assignment.createdBy === "object" ? assignment.createdBy : null;
+                  
+                  // Use employee details if available, fallback to user details, otherwise "—"
+                  const assignedBy = assignerEmp ? assignerEmp.name : (createdByObj ? createdByObj.userId : "—");
+                  const assignedBySubtext = assignerEmp ? assignerEmp.department : (createdByObj ? createdByObj.email : "");
+
                   return (
-                    <tr key={assignment._id || assignment.id}>
-                      <td className="px-4 py-4 text-sm">
-                        <div className="font-semibold text-slate-900">
+                    <tr key={assignment._id || assignment.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
+                        <div className="font-semibold text-slate-900 truncate">
                           {assetName}
                         </div>
                         {assetCode && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 truncate">
                             ID: {assetCode}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm">
-                        <div className="font-medium text-slate-900">
+                      <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
+                        <div className="font-medium text-slate-900 truncate">
                           {employeeName}
                         </div>
                         {department && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 truncate">
                             {department}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-center text-sm text-slate-500">
+                      <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
+                        <div className="font-medium text-slate-900 truncate">
+                          {assignedBy}
+                        </div>
+                        {assignedBySubtext && (
+                          <div className="text-xs text-slate-500 truncate">
+                            {assignedBySubtext}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center text-sm text-slate-500 w-1/6 whitespace-nowrap">
                         {assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : "—"}
                       </td>
-                      <td className="px-4 py-4 text-center text-sm text-slate-500">
+                      <td className="px-4 py-4 text-center text-sm text-slate-500 w-1/6 whitespace-nowrap">
                         {dueDate ? new Date(dueDate).toLocaleDateString() : "—"}
                       </td>
-                      <td className="px-4 py-4 text-sm text-center">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
-                        >
-                          {statusText}
-                        </span>
-                        {isReturned && (
-                          <div className="mt-1 text-[10px] text-slate-400 font-medium">
-                            {new Date(assignment.returnedDate).toLocaleDateString()}
-                          </div>
+                      <td className="px-4 py-4 text-sm text-center w-1/6">
+                        {isReturned ? (
+                          <Tooltip content={`Returned on ${new Date(assignment.returnedDate).toLocaleDateString()}`}>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                              {statusText}
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                            {statusText}
+                          </span>
                         )}
                       </td>
                     </tr>

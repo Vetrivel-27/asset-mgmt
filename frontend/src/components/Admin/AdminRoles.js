@@ -13,12 +13,14 @@ const PERMISSION_DEPENDENCIES = {
   view_my_damage: ["view_asset"],
   manage_asset: ["view_asset"],
   assign_asset: ["view_assignments"],
-  view_assignments: ["view_asset"],
+  view_assignments: ["view_asset", "view_users"],
   approve_borrow: ["view_asset", "view_users"],
   manage_maintenance: ["view_my_damage"],
   manage_users: ["view_users"],
   manage_roles: ["view_users"],
   manage_report: ["view_report"],
+  view_dashboard: ["view_asset", "view_users", "view_assignments"],
+  view_report: ["view_asset"]
 };
 
 function AdminRoles() {

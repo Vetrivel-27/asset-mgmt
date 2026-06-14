@@ -6,9 +6,7 @@ import Employee from "../models/Employee.js";
 
 export const seedDatabase = async () => {
   try {
-    // Seed Permissions
-    const permissionCount = await Permission.countDocuments();
-    if (permissionCount === 0) {
+    // Seed / sync Permissions — always upsert so new permissions are added
     const permissionsToCreate = [
       { name: "view_asset", group: "Asset" },
       { name: "manage_asset", group: "Asset" },
@@ -26,19 +24,19 @@ export const seedDatabase = async () => {
       { name: "view_my_damage", group: "Maintenance" },
       { name: "manage_maintenance", group: "Maintenance" },
 
-        { name: "view_report", group: "Report" },
-        // { name: "manage_report", group: "Report" },
-        { name: "view_dashboard", group: "Report" },
+      { name: "view_report", group: "Report" },
+      // { name: "manage_report", group: "Report" },
+      { name: "view_dashboard", group: "Report" },
 
-        // { name: "send_notification", group: "Notification" },
-        // { name: "view_notification", group: "Notification" },
+      // { name: "send_notification", group: "Notification" },
+      // { name: "view_notification", group: "Notification" },
 
       { name: "manage_users", group: "Administration" },
       { name: "view_users", group: "Administration" },
       { name: "manage_roles", group: "Administration" },
-        // { name: "manage_settings", group: "Administration" },
+      // { name: "manage_settings", group: "Administration" },
 
-        // { name: "view_audit", group: "Audit" }
+      // { name: "view_audit", group: "Audit" }
     ];
 
     for (const perm of permissionsToCreate) {
@@ -50,8 +48,7 @@ export const seedDatabase = async () => {
     }
     console.log("Permissions seeded/synced successfully");
 
-    // Seed Roles
-    const roleCount = await Role.countDocuments();
+    // Always sync Admin role with all current permissions
     const allPermissions = await Permission.find();
     let adminRole = await Role.findOne({ name: "Admin" });
     if (adminRole) {
@@ -68,11 +65,9 @@ export const seedDatabase = async () => {
 
     // Seed Default Admin User
     const existingAdmin = await User.findOne({ email: "admin@test.com" });
-    let adminUser = existingAdmin;
     if (!existingAdmin) {
-      const adminRole = await Role.findOne({ name: "Admin" });
       const hashedPassword = await bcrypt.hash("admin123", 10);
-      adminUser = await User.create({
+      await User.create({
         userId: "0000",
         email: "admin@test.com",
         password: hashedPassword,
@@ -80,23 +75,7 @@ export const seedDatabase = async () => {
       });
       console.log("Default admin user created");
     }
-
-    // Check if there is an Employee profile for the admin user
-    if (adminUser) {
-      const existingAdminEmployee = await Employee.findOne({
-        userId: adminUser._id,
-      });
-      if (!existingAdminEmployee) {
-        await Employee.create({
-          name: "System Admin",
-          department: "Administration",
-          userId: adminUser._id,
-        });
-        console.log("Default admin employee profile created");
-      }
-    }
-  }
- } catch (err) {
+  } catch (err) {
     console.error("Database seeding failed:", err);
   }
 };

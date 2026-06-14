@@ -104,12 +104,12 @@ function AdminReports() {
     return 'bg-slate-100 text-slate-600';
   };
 
-  const statusLabel = (status) => {
-    if (status === 'open') return 'Open';
-    if (status === 'in_progress') return 'In Progress';
-    if (status === 'resolved') return 'Closed';
-    return status;
-  };
+  // const statusLabel = (status) => {
+  //   if (status === 'open') return 'Open';
+  //   if (status === 'in_progress') return 'In Progress';
+  //   if (status === 'resolved') return 'Closed';
+  //   return status;
+  // };
 
   const damagedAssets = useMemo(
     () =>
@@ -162,7 +162,7 @@ function AdminReports() {
       <div className="grid gap-5 lg:grid-cols-3">
         {hasPermission("view_assignments") && (
           <div
-            className="p-6 bg-white rounded-xl shadow-md cursor-pointer
+            className="p-6 bg-white rounded-xl shadow-md cursor-default
                       transition-all duration-300 ease-in-out
                       hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
           >
@@ -267,7 +267,7 @@ function AdminReports() {
         )}
 
         <div
-          className="p-6 bg-white rounded-xl shadow-md cursor-pointer
+          className="p-6 bg-white rounded-xl shadow-md cursor-default
                     transition-all duration-300 ease-in-out
                     hover:-translate-y-2 hover:scale-105 hover:shadow-2xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm"
         >

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
+import SortableHeader from "../SortableHeader";
+import { useTableSort } from "../../hooks/useTableSort";
 
 function AdminRequests() {
   const [requests, setRequests] = useState([]);
@@ -20,8 +22,8 @@ function AdminRequests() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Load requests
-  const loadRequests = async () => {
-    setLoading(true);
+  const loadRequests = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = sessionStorage.getItem("authToken");
       const res = await fetch(`${API_URL}/api/requests`, {
@@ -35,12 +37,12 @@ function AdminRequests() {
       console.error(err);
       setErrorMsg("Failed to load requests.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   // Load available assets for assignment when approving
-  const loadAvailableAssets = async () => {
+  const loadAvailableAssets = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("authToken");
       const res = await fetch(`${API_URL}/api/assets?status=available`, {
@@ -55,12 +57,30 @@ function AdminRequests() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
+
+  const refreshData = useCallback(async (silent = false) => {
+    await Promise.all([loadRequests(silent), loadAvailableAssets()]);
+  }, [loadRequests, loadAvailableAssets]);
 
   useEffect(() => {
-    loadRequests();
-    loadAvailableAssets();
-  }, []);
+    refreshData(false);
+
+    const handleStatusChange = () => {
+      refreshData(true);
+    };
+
+    window.addEventListener("request_status_changed", handleStatusChange);
+
+    const intervalId = setInterval(() => {
+      refreshData(true);
+    }, 30000); // Poll every 30 seconds
+
+    return () => {
+      window.removeEventListener("request_status_changed", handleStatusChange);
+      clearInterval(intervalId);
+    };
+  }, [refreshData]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -86,6 +106,8 @@ function AdminRequests() {
 
     return statusMatches && searchMatches;
   });
+
+  const { items: sortedRequests, requestSort, sortConfig } = useTableSort(filteredRequests, { key: 'requestDate', direction: 'desc' });
 
   // Handle Approve Request Submit
   const handleApproveSubmit = async (e) => {
@@ -250,48 +272,48 @@ function AdminRequests() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
+            <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Employee</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Requested Info</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Reason</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Dates</th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
-                  <th className="px-4 py-4 text-right text-sm font-semibold text-slate-700">Actions</th>
+                  <SortableHeader label="Employee" sortKey="employeeId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Requested Info" sortKey="assetType" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Reason" sortKey="reason" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Dates" sortKey="requestDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <th className="w-1/6 px-4 py-4 text-right text-sm font-semibold text-slate-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredRequests.map((req) => (
-                  <tr key={req._id}>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="font-bold text-slate-900">{req.employeeId?.name || "Unknown"}</div>
-                      <div className="text-xs text-slate-400">{req.employeeId?.department || "—"}</div>
+                {sortedRequests.map((req) => (
+                  <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
+                      <div className="font-bold text-slate-900 truncate">{req.employeeId?.name || "Unknown"}</div>
+                      <div className="text-xs text-slate-400 truncate">{req.employeeId?.department || "—"}</div>
                     </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="capitalize font-semibold text-slate-800">{req.assetType || "General"}</div>
+                    <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
+                      <div className="capitalize font-semibold text-slate-800 truncate">{req.assetType || "General"}</div>
                       {req.requestedAssetId && (
-                        <div className="text-xs text-slate-500 mt-0.5">
+                        <div className="text-xs text-slate-500 mt-0.5 truncate">
                           Specific: {req.requestedAssetId.name} ({req.requestedAssetId.assetId})
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-500 max-w-xs truncate" title={req.reason}>
+                    <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/6 truncate" title={req.reason}>
                       {req.reason || "—"}
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-500">
-                      <div className="text-xs">
+                    <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/6 truncate">
+                      <div className="text-xs truncate">
                         <span className="font-medium text-slate-400">Request:</span>{" "}
                         {new Date(req.createdAt).toLocaleDateString()}
                       </div>
                       {req.tentativeReturnDate && (
-                        <div className="text-xs mt-0.5">
+                        <div className="text-xs mt-0.5 truncate">
                           <span className="font-medium text-slate-400">Due:</span>{" "}
                           {new Date(req.tentativeReturnDate).toLocaleDateString()}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 text-center w-1/6 truncate">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border ${
                           req.status === "pending"
@@ -304,7 +326,7 @@ function AdminRequests() {
                         {req.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-right text-sm">
+                    <td className="px-4 py-4 text-right text-sm w-1/6 truncate">
                       {req.status === "pending" ? (
                         <div className="flex items-center justify-end gap-2">
                           <button

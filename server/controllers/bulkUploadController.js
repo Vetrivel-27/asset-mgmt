@@ -52,22 +52,38 @@ export const bulkUpload = async (req, res) => {
                         throw new Error("Cannot modify core 'admin' role via bulk upload.");
                     }
 
-                    const permNames = permsString.split(',').map(s => s.trim().toLowerCase());
+                    const permNames = permsString
+                        .split(',')
+                        .map((s) => s.trim().toLowerCase())
+                        .filter(Boolean);
                     const permIds = [];
+                    const unknownPerms = [];
+
                     for (const pName of permNames) {
                         if (permMap[pName]) {
                             permIds.push(permMap[pName]);
+                        } else {
+                            unknownPerms.push(pName);
                         }
                     }
 
+                    if (unknownPerms.length > 0) {
+                        throw new Error(
+                            `Unknown permission name(s): ${unknownPerms.join(", ")}. ` +
+                            `Please add them to permissions or correct the sheet.`
+                        );
+                    }
+
+                    const uniquePermIds = [...new Set(permIds)];
+
                     const existingRole = await Role.findOne({ name: roleName });
                     if (existingRole) {
-                        existingRole.permissions = permIds;
+                        existingRole.permissions = uniquePermIds;
                         await existingRole.save();
                         summary.roles.updated++;
                         details.roles.push({ row: rowNum, status: 'updated', name: roleName });
                     } else {
-                        await Role.create({ name: roleName, permissions: permIds });
+                        await Role.create({ name: roleName, permissions: uniquePermIds });
                         summary.roles.created++;
                         details.roles.push({ row: rowNum, status: 'created', name: roleName });
                     }

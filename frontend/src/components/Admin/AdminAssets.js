@@ -3,6 +3,8 @@ import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import CanAccess from "../CanAccess";
 import BulkUploadForm from "./BulkUploadForm";
+import SortableHeader from "../SortableHeader";
+import { useTableSort } from "../../hooks/useTableSort";
 
 const SEED_CATEGORIES = [
   "Laptop",
@@ -15,7 +17,7 @@ const SEED_CATEGORIES = [
   "Printer",
 ];
 
-function AdminAssets() {
+function AdminAssets({ onReturnToCatalogue }) {
   const [assets, setAssets] = useState([]);
   const [dbCategories, setDbCategories] = useState([]);
   const [filter, setFilter] = useState("");
@@ -118,8 +120,10 @@ function AdminAssets() {
     });
   }, [assets, filter, statusFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
-  const currentPageAssets = filteredAssets.slice(
+  const { items: sortedAssets, requestSort, sortConfig } = useTableSort(filteredAssets, { key: 'name', direction: 'asc' });
+
+  const pageCount = Math.max(1, Math.ceil(sortedAssets.length / pageSize));
+  const currentPageAssets = sortedAssets.slice(
     (page - 1) * pageSize,
     page * pageSize,
   );
@@ -367,6 +371,15 @@ function AdminAssets() {
         </div>
         <CanAccess permission="manage_asset">
           <div className="flex items-center gap-3">
+            {onReturnToCatalogue && (
+              <button
+                type="button"
+                onClick={onReturnToCatalogue}
+                className="rounded-2xl border-2 border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:border-slate-900 hover:bg-slate-900 hover:text-white transition"
+              >
+                ← Return to Catalogue
+              </button>
+            )}
             <button
               onClick={() => {
                 setShowBulkUpload((prev) => !prev);
@@ -578,21 +591,11 @@ function AdminAssets() {
           <table className="min-w-full table-fixed divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Asset Name
-                </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Asset ID
-                </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Category
-                </th>
-                <th className="w-1/6 px-4 py-4 text-center text-sm font-semibold text-slate-700">
-                  Status
-                </th>
-                <th className="w-1/6 px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                  Assigned To
-                </th>
+                <SortableHeader label="Asset Name" sortKey="name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                <SortableHeader label="Asset ID" sortKey="assetId" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                <SortableHeader label="Category" sortKey="type" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
+                <SortableHeader label="Assigned To" sortKey="assignedToName" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
                 <th className="w-1/6 px-4 py-4 text-right text-sm font-semibold text-slate-700">
                   Actions
                 </th>
@@ -620,13 +623,13 @@ function AdminAssets() {
               ) : (
                 currentPageAssets.map((asset) => (
                   <tr key={asset._id}>
-                    <td className="px-4 py-4 text-sm font-semibold text-slate-900">
+                    <td className="px-4 py-4 text-sm text-center font-semibold text-slate-900">
                       {asset.name}
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-500 font-mono">
+                    <td className="px-4 py-4 text-sm text-center text-slate-500 font-mono">
                       {asset.assetId}
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-500 capitalize">
+                    <td className="px-4 py-4 text-sm text-center text-slate-500 capitalize">
                       {asset.type}
                     </td>
                     <td className="px-4 py-4 text-sm text-center">
@@ -650,7 +653,7 @@ function AdminAssets() {
                             : asset.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-900">
+                    <td className="px-4 py-4 text-sm text-center text-slate-900">
                       {asset.status === "assigned" && asset.assignedTo ? (
                         <div className="flex flex-col">
                           <span className="font-semibold text-slate-800">

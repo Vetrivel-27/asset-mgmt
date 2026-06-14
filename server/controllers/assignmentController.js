@@ -82,13 +82,50 @@ export const returnAsset = async (req, res) => {
 
 export const getAllAssignments = async (req, res) => {
   try {
+    // Core query — asset + employee populates only (these are reliable)
     const assignments = await Assignment.find({})
       .populate("assetId", "name type assetId status")
       .populate({
         path: "employeeId",
         select: "name department",
         populate: { path: "userId", select: "userId email" },
-      });
+      })
+      .lean();
+
+    // Enrich with assigner employee details (isolated so failures don't break the endpoint)
+    try {
+      const createdByIds = [...new Set(
+        assignments.map(a => a.createdBy).filter(Boolean)
+      )];
+
+      if (createdByIds.length > 0) {
+        // Fetch User docs for createdBy
+        const users = await User.find({ _id: { $in: createdByIds } }).select("userId email").lean();
+        const userMap = {};
+        users.forEach(u => { userMap[u._id.toString()] = u; });
+
+        // Fetch Employee docs matching those Users
+        const userObjIds = users.map(u => u._id);
+        const assignerEmployees = await Employee.find({ userId: { $in: userObjIds } })
+          .select("userId name department").lean();
+        const empMap = {};
+        assignerEmployees.forEach(emp => {
+          empMap[emp.userId.toString()] = emp;
+        });
+
+        // Attach to each assignment
+        assignments.forEach(a => {
+          const uid = a.createdBy?.toString();
+          if (uid) {
+            a.createdBy = userMap[uid] || a.createdBy;
+            a.assignerEmployee = empMap[uid] || null;
+          }
+        });
+      }
+    } catch (enrichErr) {
+      // Assigner enrichment failed — assignments still returned without assigner details
+    }
+
     res.json(assignments);
   } catch (error) {
     console.error(error);
@@ -104,8 +141,40 @@ export const getMyAssignments = async (req, res) => {
     }
     const assignments = await Assignment.find({ employeeId: employee._id })
       .populate("assetId", "name type assetId status")
-      .populate("createdBy", "userId email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Enrich with assigner details (isolated)
+    try {
+      const createdByIds = [...new Set(
+        assignments.map(a => a.createdBy).filter(Boolean)
+      )];
+
+      if (createdByIds.length > 0) {
+        const users = await User.find({ _id: { $in: createdByIds } }).select("userId email").lean();
+        const userMap = {};
+        users.forEach(u => { userMap[u._id.toString()] = u; });
+
+        const userObjIds = users.map(u => u._id);
+        const assignerEmployees = await Employee.find({ userId: { $in: userObjIds } })
+          .select("userId name department").lean();
+        const empMap = {};
+        assignerEmployees.forEach(emp => {
+          empMap[emp.userId.toString()] = emp;
+        });
+
+        assignments.forEach(a => {
+          const uid = a.createdBy?.toString();
+          if (uid) {
+            a.createdBy = userMap[uid] || a.createdBy;
+            a.assignerEmployee = empMap[uid] || null;
+          }
+        });
+      }
+    } catch (enrichErr) {
+      // Assigner enrichment failed — assignments still returned without assigner details
+    }
+
     res.json(assignments);
   } catch (error) {
     console.error(error);

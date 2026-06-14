@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import { hasPermission } from "../../permissions";
+import SortableHeader from "../SortableHeader";
+import { useTableSort } from "../../hooks/useTableSort";
 
 function EmployeeHistory() {
   const [assignments, setAssignments] = useState([]);
@@ -10,6 +12,10 @@ function EmployeeHistory() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+
+  const canBorrow = hasPermission("borrow_asset");
+  const canReturn = hasPermission("return_asset");
+  const isReturnOnly = !canBorrow && canReturn;
 
   // Sidebar / Logs Drawer State
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -122,6 +128,8 @@ function EmployeeHistory() {
     });
   }, [combinedHistory, search, typeFilter]);
 
+  const { items: sortedHistory, requestSort, sortConfig } = useTableSort(filteredHistory, { key: 'dateSort', direction: 'desc' });
+
   const stats = useMemo(() => {
     const total = combinedHistory.filter(r => r.recordType === 'assignment').length;
     const returned = combinedHistory.filter((r) => r.recordType === 'assignment' && !!r.returnedDate).length;
@@ -152,7 +160,7 @@ function EmployeeHistory() {
             Asset History
           </h2>
           <p className="text-sm text-slate-500 max-w-2xl">
-            A complete log of your borrowed assets, approval histories, return records, and current statuses.
+            A complete log of your {isReturnOnly ? "assigned" : "borrowed"} assets, approval histories, return records, and current statuses.
           </p>
         </div>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 w-full lg:w-auto">
@@ -161,7 +169,7 @@ function EmployeeHistory() {
           )}
           <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Borrowed
+              {isReturnOnly ? "Assigned" : "Borrowed"}
             </p>
             <p className="mt-2 text-2xl sm:text-3xl font-bold text-orange-400">
               {stats.total}
@@ -246,28 +254,18 @@ function EmployeeHistory() {
             <div className="space-y-6">
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
+                <table className="min-w-full table-fixed divide-y divide-slate-200">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Asset Name
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Asset ID
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Date
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Returned Date
-                      </th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-slate-700">
-                        Status
-                      </th>
+                      <SortableHeader label="Asset Name" sortKey="asset.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/5" />
+                      <SortableHeader label="Asset ID" sortKey="asset.assetId" currentSort={sortConfig} requestSort={requestSort} className="w-1/5" />
+                      <SortableHeader label="Date" sortKey="dateSort" currentSort={sortConfig} requestSort={requestSort} className="w-1/5" />
+                      <SortableHeader label="Returned Date" sortKey="returnedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/5" />
+                      <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} requestSort={requestSort} className="w-1/5" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {filteredHistory.map((record) => {
+                    {sortedHistory.map((record) => {
                       const status = statusLabel(record);
                       return (
                         <tr
@@ -278,25 +276,25 @@ function EmployeeHistory() {
                           }}
                           className="cursor-pointer hover:bg-slate-50 transition-colors"
                         >
-                          <td className="px-4 py-4 text-sm font-medium text-slate-900">
+                          <td className="px-4 py-4 text-sm text-center font-medium text-slate-900 w-1/5 truncate">
                             {record.asset?.name || record.assetType || "Unknown asset"}
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-500">
+                          <td className="px-4 py-4 text-sm text-center text-slate-500 font-mono w-1/5 truncate">
                             {record.asset?.assetId || "—"}
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-500">
+                          <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/5 truncate">
                             {record.recordType === 'assignment' && record.assignedDate
                               ? new Date(record.assignedDate).toLocaleDateString()
                               : record.recordType === 'rejected_request' || record.recordType === 'damage_report'
                                 ? new Date(record.createdAt).toLocaleDateString() 
                                 : "—"}
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-500">
+                          <td className="px-4 py-4 text-sm text-center text-slate-500 w-1/5 truncate">
                             {record.returnedDate
                               ? new Date(record.returnedDate).toLocaleDateString()
                               : "—"}
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 text-sm text-center w-1/5 truncate">
                             <span
                               className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold border ${status.classes}`}
                             >
@@ -341,7 +339,7 @@ function EmployeeHistory() {
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                           <p className="text-xs text-slate-400 font-medium">
-                            {record.recordType === 'rejected_request' ? "Requested" : record.recordType === 'damage_report' ? "Reported" : "Borrowed"}
+                            {record.recordType === 'rejected_request' ? "Requested" : record.recordType === 'damage_report' ? "Reported" : (isReturnOnly ? "Assigned" : "Borrowed")}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-700">
                             {record.recordType === 'assignment' && record.assignedDate
