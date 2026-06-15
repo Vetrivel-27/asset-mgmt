@@ -3,7 +3,9 @@ import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 import { useMemo } from "react";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import Tooltip from "../Tooltip";
 
 function AdminAssignments() {
@@ -25,8 +27,6 @@ function AdminAssignments() {
 
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const pageSize = 6;
 
   const loadAssignments = async () => {
     try {
@@ -169,13 +169,10 @@ function AdminAssignments() {
 
   const { items: sortedAssignments, requestSort, sortConfig } = useTableSort(filteredAssignments, { key: 'assignedDate', direction: 'desc' });
 
-  const pageCount = Math.max(1, Math.ceil(sortedAssignments.length / pageSize));
-  const currentPageAssignments = sortedAssignments.slice((page - 1) * pageSize, page * pageSize);
-  
-  // reset page on filter change
-  useEffect(() => {
-    setPage(1);
-  }, [filter, statusFilter]);
+  const {
+    page, pageCount, pageItems: currentPageAssignments, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedAssignments, pageSize: 6, resetDeps: [filter, statusFilter] });
 
   // Only show employees that do not have an 'admin' role
   const nonAdminEmployees = employees.filter(
@@ -376,7 +373,7 @@ function AdminAssignments() {
                   const employeeName = employee
                     ? employee.name
                     : assignment.assignedTo || "—";
-                  const department = employee ? employee.department : "";
+                  const empUserId = employee?.userId?.userId || "";
 
                   const isReturned = !!assignment.returnedDate;
                   const dueDate = assignment.tentativeReturnDate;
@@ -393,7 +390,7 @@ function AdminAssignments() {
                   
                   // Use employee details if available, fallback to user details, otherwise "—"
                   const assignedBy = assignerEmp ? assignerEmp.name : (createdByObj ? createdByObj.userId : "—");
-                  const assignedBySubtext = assignerEmp ? assignerEmp.department : (createdByObj ? createdByObj.email : "");
+                  const assignedBySubtext = createdByObj ? createdByObj.userId : "";
 
                   return (
                     <tr key={assignment._id || assignment.id} className="hover:bg-slate-50 transition-colors">
@@ -411,9 +408,9 @@ function AdminAssignments() {
                         <div className="font-medium text-slate-900 truncate">
                           {employeeName}
                         </div>
-                        {department && (
+                        {empUserId && (
                           <div className="text-xs text-slate-500 truncate">
-                            {department}
+                            ID: {empUserId}
                           </div>
                         )}
                       </td>
@@ -423,7 +420,7 @@ function AdminAssignments() {
                         </div>
                         {assignedBySubtext && (
                           <div className="text-xs text-slate-500 truncate">
-                            {assignedBySubtext}
+                            ID: {assignedBySubtext}
                           </div>
                         )}
                       </td>
@@ -455,29 +452,12 @@ function AdminAssignments() {
         )}
 
         {/* Pagination */}
-        {pageCount > 1 && (
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {currentPageAssignments.length} of {filteredAssignments.length} assignments
-            </p>
-
-            <div className="flex items-center gap-2">
-              {Array.from({ length: pageCount }, (_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPage(index + 1)}
-                  className={`rounded-2xl px-4 py-2 text-xs font-bold transition ${
-                    page === index + 1
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page} pageCount={pageCount} setPage={setPage}
+          canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+          showing={currentPageAssignments.length} total={filteredAssignments.length}
+          label="assignments"
+        />
       </div>
     </div>
   );

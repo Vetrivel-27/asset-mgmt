@@ -133,7 +133,7 @@ export const getAllRequests = async (req, res) => {
       .populate({
         path: "employeeId",
         select: "name department",
-        populate: { path: "userId", select: "username email" },
+        populate: { path: "userId", select: "userId email" },
       })
       .populate("assignedAssetId", "name assetId")
       .populate("requestedAssetId", "name assetId type")

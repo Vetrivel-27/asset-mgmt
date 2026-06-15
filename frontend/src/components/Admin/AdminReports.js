@@ -245,7 +245,7 @@ function AdminReports() {
                         {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
                       </div>
                       <div className="text-xs text-slate-500 truncate" title={r.message}>
-                        {r.employeeId?.name || "Unknown user"} • {r.message}
+                        {r.employeeId?.name || "Unknown user"} {r.employeeId?.userId?.userId ? `(ID: ${r.employeeId.userId.userId})` : ''} • {r.message}
                       </div>
                     </div>
                     <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -393,7 +393,9 @@ function AdminReports() {
                       {r.assetId?.name || r.assetId?.assetId || "Unknown Asset"}
                     </div>
                     <div className="text-sm text-slate-700 mt-1">
-                      <span className="font-semibold text-slate-900">{r.employeeId?.name || "Unknown user"}</span> reported: 
+                      <span className="font-semibold text-slate-900">{r.employeeId?.name || "Unknown user"}</span>
+                      {r.employeeId?.userId?.userId && <span className="text-xs text-slate-500 ml-2">ID: {r.employeeId.userId.userId}</span>}
+                      <span className="ml-2">reported:</span> 
                       <span className="italic ml-1">"{r.message}"</span>
                     </div>
                     <div className="text-xs text-slate-500 mt-2">

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 
 // ── icons (inline SVG so no extra dependency) ──────────────────────────────
 const BoxIcon = ({ color = "text-yellow-500" }) => (
@@ -146,6 +148,11 @@ function EmployeeStatus() {
   const pendingRequests = requests.filter((r) => r.status === "pending");
 
   const { items: sortedReturnedAssignments, requestSort, sortConfig } = useTableSort(returnedAssignments, { key: 'returnedDate', direction: 'desc' });
+
+  const {
+    page, pageCount, pageItems: paginatedReturns, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedReturnedAssignments, pageSize: 6 });
 
   return (
     <div className="space-y-8">
@@ -344,7 +351,7 @@ function EmployeeStatus() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {sortedReturnedAssignments.map((assignment) => {
+                    {paginatedReturns.map((assignment) => {
                       const asset =
                         (typeof assignment.assetId === "object" && assignment.assetId !== null)
                           ? assignment.assetId
@@ -379,6 +386,13 @@ function EmployeeStatus() {
                   </tbody>
                 </table>
               </div>
+
+              <Pagination
+                page={page} pageCount={pageCount} setPage={setPage}
+                canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+                showing={paginatedReturns.length} total={returnedAssignments.length}
+                label="returns"
+              />
             </section>
           )}
         </>

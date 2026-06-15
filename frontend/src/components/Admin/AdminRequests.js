@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 
 function AdminRequests() {
   const [requests, setRequests] = useState([]);
@@ -108,6 +110,11 @@ function AdminRequests() {
   });
 
   const { items: sortedRequests, requestSort, sortConfig } = useTableSort(filteredRequests, { key: 'requestDate', direction: 'desc' });
+
+  const {
+    page, pageCount, pageItems: paginatedRequests, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedRequests, pageSize: 8, resetDeps: [statusFilter, search] });
 
   // Handle Approve Request Submit
   const handleApproveSubmit = async (e) => {
@@ -271,6 +278,7 @@ function AdminRequests() {
             <p className="font-semibold text-slate-600">No requests found.</p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="min-w-full table-fixed divide-y divide-slate-200">
               <thead className="bg-slate-50">
@@ -284,11 +292,13 @@ function AdminRequests() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {sortedRequests.map((req) => (
+                {paginatedRequests.map((req) => (
                   <tr key={req._id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
-                      <div className="font-bold text-slate-900 truncate">{req.employeeId?.name || "Unknown"}</div>
-                      <div className="text-xs text-slate-400 truncate">{req.employeeId?.department || "—"}</div>
+                      <div className="font-medium text-slate-900 truncate">{req.employeeId?.name || "Unknown"}</div>
+                      <div className="text-xs text-slate-500 truncate">
+                        ID: {req.employeeId?.userId?.userId || "—"}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
                       <div className="capitalize font-semibold text-slate-800 truncate">{req.assetType || "General"}</div>
@@ -360,6 +370,14 @@ function AdminRequests() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            page={page} pageCount={pageCount} setPage={setPage}
+            canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+            showing={paginatedRequests.length} total={filteredRequests.length}
+            label="requests"
+          />
+          </>
         )}
       </div>
 

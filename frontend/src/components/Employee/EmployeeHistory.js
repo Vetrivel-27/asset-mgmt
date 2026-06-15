@@ -3,7 +3,9 @@ import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import { hasPermission } from "../../permissions";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 
 function EmployeeHistory() {
   const [assignments, setAssignments] = useState([]);
@@ -129,6 +131,11 @@ function EmployeeHistory() {
   }, [combinedHistory, search, typeFilter]);
 
   const { items: sortedHistory, requestSort, sortConfig } = useTableSort(filteredHistory, { key: 'dateSort', direction: 'desc' });
+
+  const {
+    page, pageCount, pageItems: paginatedHistory, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedHistory, pageSize: 8, resetDeps: [search, typeFilter] });
 
   const stats = useMemo(() => {
     const total = combinedHistory.filter(r => r.recordType === 'assignment').length;
@@ -265,7 +272,7 @@ function EmployeeHistory() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {sortedHistory.map((record) => {
+                    {paginatedHistory.map((record) => {
                       const status = statusLabel(record);
                       return (
                         <tr
@@ -310,7 +317,7 @@ function EmployeeHistory() {
 
               {/* Mobile Card View */}
               <div className="grid gap-4 md:hidden">
-                {filteredHistory.map((record) => {
+                {paginatedHistory.map((record) => {
                   const status = statusLabel(record);
                   return (
                     <div
@@ -362,6 +369,13 @@ function EmployeeHistory() {
                   );
                 })}
               </div>
+
+              <Pagination
+                page={page} pageCount={pageCount} setPage={setPage}
+                canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+                showing={paginatedHistory.length} total={filteredHistory.length}
+                label="records"
+              />
             </div>
           )}
         </div>

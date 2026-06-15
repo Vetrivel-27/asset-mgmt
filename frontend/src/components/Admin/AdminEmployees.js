@@ -4,7 +4,9 @@ import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 import BulkUploadForm from "./BulkUploadForm";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("authToken");
@@ -23,7 +25,7 @@ function AdminEmployees() {
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+
   const [viewMode, setViewMode] = useState("grid");
   const [showForm, setShowForm] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -71,7 +73,7 @@ function AdminEmployees() {
     return Array.from(deps).sort();
   }, [employees]);
 
-  const pageSize = 8;
+
 
   const avatarColors = [
     "bg-sky-500",
@@ -153,17 +155,10 @@ function AdminEmployees() {
 
   const { items: sortedEmployees, requestSort, sortConfig } = useTableSort(filteredEmployees, { key: 'name', direction: 'asc' });
 
-  const pageCount = Math.max(1, Math.ceil(sortedEmployees.length / pageSize));
-  const pageItems = sortedEmployees.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
-  );
-
-  useEffect(() => {
-    if (page > pageCount) {
-      setPage(pageCount);
-    }
-  }, [pageCount, page]);
+  const {
+    page, pageCount, pageItems, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedEmployees, pageSize: 8, resetDeps: [filter] });
 
   const resetForm = () => {
     setFormName("");
@@ -731,22 +726,12 @@ function AdminEmployees() {
         </div>
 
         {!loading && (
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {pageItems.length} of {filteredEmployees.length} employees
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: pageCount }, (_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPage(index + 1)}
-                  className={`rounded-2xl px-4 py-2 text-sm ${page === index + 1 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Pagination
+            page={page} pageCount={pageCount} setPage={setPage}
+            canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+            showing={pageItems.length} total={filteredEmployees.length}
+            label="employees"
+          />
         )}
       </div>
 

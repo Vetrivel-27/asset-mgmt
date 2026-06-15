@@ -4,7 +4,9 @@ import { createPortal } from "react-dom";
 import CanAccess from "../CanAccess";
 import BulkUploadForm from "./BulkUploadForm";
 import SortableHeader from "../SortableHeader";
+import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
+import { usePagination } from "../../hooks/usePagination";
 
 const SEED_CATEGORIES = [
   "Laptop",
@@ -22,8 +24,7 @@ function AdminAssets({ onReturnToCatalogue }) {
   const [dbCategories, setDbCategories] = useState([]);
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(6); // Pagination limit set to 6 per page
+
   const [loading, setLoading] = useState(true);
 
   // Form states (Add Asset)
@@ -122,15 +123,10 @@ function AdminAssets({ onReturnToCatalogue }) {
 
   const { items: sortedAssets, requestSort, sortConfig } = useTableSort(filteredAssets, { key: 'name', direction: 'asc' });
 
-  const pageCount = Math.max(1, Math.ceil(sortedAssets.length / pageSize));
-  const currentPageAssets = sortedAssets.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
-  );
-
-  useEffect(() => {
-    setPage(1);
-  }, [filter, statusFilter]);
+  const {
+    page, pageCount, pageItems: currentPageAssets, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: sortedAssets, pageSize: 6, resetDeps: [filter, statusFilter] });
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -693,30 +689,12 @@ function AdminAssets({ onReturnToCatalogue }) {
         </div>
 
         {/* Pagination */}
-        {pageCount > 1 && (
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {currentPageAssets.length} of {filteredAssets.length}{" "}
-              assets
-            </p>
-
-            <div className="flex items-center gap-2">
-              {Array.from({ length: pageCount }, (_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPage(index + 1)}
-                  className={`rounded-2xl px-4 py-2 text-xs font-bold transition ${
-                    page === index + 1
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page} pageCount={pageCount} setPage={setPage}
+          canPrev={canPrev} canNext={canNext} prev={prev} next={next}
+          showing={currentPageAssets.length} total={filteredAssets.length}
+          label="assets"
+        />
       </div>
 
       {/* Edit Asset Modal */}
