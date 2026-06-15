@@ -101,7 +101,7 @@ export const forgotPassword = async (req, res) =>{
         user.resetPasswordOtpExpires = Date.now()+10*60*1000;
 
         await user.save();
-        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+        const resetUrl = `https://ams-frontend-djc3.onrender.com/forgot-password/${resetToken}`;
         const message = `
         <p>Please use this OTP to verify your password reset request:</p>
         <h2>${otp}</h2>

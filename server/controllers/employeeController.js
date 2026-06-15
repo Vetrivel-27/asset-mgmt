@@ -68,7 +68,7 @@ export const createEmployee = async (req, res) => {
     });
 
     // Send setup email
-    const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+    const resetUrl = `https://ams-frontend-djc3.onrender.com/forgot-password/${resetToken}`;
     const message = `
             <h1>Asset Management System</h1>
             <p>Welcome, ${name}! Your account has been created.</p>
@@ -205,7 +205,7 @@ export const updateEmployee = async (req, res) => {
         userUpdate.resetPasswordToken = hashedToken;
         userUpdate.resetPasswordExpires = Date.now() + 24 * 60 * 60 * 1000;
         
-        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+        const resetUrl = `https://ams-frontend-djc3.onrender.com/forgot-password/${resetToken}`;
         const message = `
             <h1>Asset Management System</h1>
             <p>Hello ${employee.name},</p>
@@ -344,7 +344,7 @@ export const createEmployeesBulk = async (req, res) => {
           createdBy: req.user.id,
         });
 
-        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+        const resetUrl = `https://ams-frontend-djc3.onrender.com/forgot-password/${resetToken}`;
         const message = `
           <h1>Asset Management System</h1>
           <p>Welcome, ${name}! Your account has been created.</p>
