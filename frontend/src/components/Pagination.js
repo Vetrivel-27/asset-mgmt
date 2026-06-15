@@ -76,7 +76,7 @@ function Pagination({
             <button
               key={p}
               onClick={() => setPage(p)}
-              className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition ${
+              className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
                 page === p
                   ? "bg-slate-900 text-white shadow-sm"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -91,7 +91,7 @@ function Pagination({
         <button
           onClick={next}
           disabled={!canNext}
-          className={`flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold transition ${
+          className={`flex items-center gap-1 rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
             canNext
               ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
               : "bg-slate-50 text-slate-300 cursor-not-allowed"
@@ -117,41 +117,20 @@ function Pagination({
   );
 }
 
-/**
- * Produce an array like [1,2,3,'…',8,9,10] for the pagination bar.
- * Rules (when pageCount > 7):
- *   - Always show first 3 and last 3 pages.
- *   - Insert '…' between the two groups when there is a gap.
- *   - When the current page bridges the gap, expand to show it.
- */
 function buildPageNumbers(current, total) {
-  if (total <= 7) {
+  if (total <= 6) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
 
-  const pages = new Set();
-
-  // Always include first 3 and last 3
-  for (let i = 1; i <= 3; i++) pages.add(i);
-  for (let i = total - 2; i <= total; i++) pages.add(i);
-
-  // Include current page and neighbours for context
-  pages.add(current);
-  if (current > 1) pages.add(current - 1);
-  if (current < total) pages.add(current + 1);
-
-  const sorted = [...pages].sort((a, b) => a - b);
-
-  // Insert ellipses where there are gaps
-  const result = [];
-  for (let i = 0; i < sorted.length; i++) {
-    if (i > 0 && sorted[i] - sorted[i - 1] > 1) {
-      result.push("…");
-    }
-    result.push(sorted[i]);
+  if (current <= 2) {
+    return [1, 2, 3, 4, "…", total];
   }
 
-  return result;
+  if (current >= total - 1) {
+    return [1, "…", total - 3, total - 2, total - 1, total];
+  }
+
+  return [1, "…", current, current + 1, "…", total];
 }
 
 export default Pagination;
