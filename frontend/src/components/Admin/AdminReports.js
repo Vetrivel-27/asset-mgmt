@@ -9,6 +9,8 @@ function AdminReports() {
   const [filedReports, setFiledReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllReportsModal, setShowAllReportsModal] = useState(false);
+  const [modalStatusFilter, setModalStatusFilter] = useState("all");
+  const [modalTypeFilter, setModalTypeFilter] = useState("all");
 
   const fetchLatestData = async (mounted = true) => {
     try {
@@ -128,6 +130,20 @@ function AdminReports() {
   const activeReportsCount = useMemo(() => {
     return filedReports.filter(r => r.status !== 'resolved').length;
   }, [filedReports]);
+
+  const reportsBySelectedType = useMemo(() => {
+    return filedReports.filter(r => {
+      const rType = r.type?.toLowerCase();
+      const isOther = rType !== 'damage' && rType !== 'lost';
+      return modalTypeFilter === 'all' || (modalTypeFilter === 'other' ? isOther : rType === modalTypeFilter);
+    });
+  }, [filedReports, modalTypeFilter]);
+
+  const filteredModalReports = useMemo(() => {
+    return reportsBySelectedType.filter(r => 
+      modalStatusFilter === 'all' || r.status === modalStatusFilter
+    );
+  }, [reportsBySelectedType, modalStatusFilter]);
 
   const recentlyAssigned = useMemo(() => {
     return assignments
@@ -372,7 +388,7 @@ function AdminReports() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-xl max-h-[80vh] flex flex-col"
           >
-            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+            <div className="flex justify-between items-center mb-4 pb-4">
               <h3 className="text-2xl font-bold text-slate-900">All Employee Reports</h3>
               <button 
                 onClick={() => setShowAllReportsModal(false)}
@@ -382,8 +398,56 @@ function AdminReports() {
                 ✕
               </button>
             </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'open', label: 'Open' },
+                  { id: 'in_progress', label: 'In Progress' },
+                  { id: 'resolved', label: 'Closed' }
+                ].map(f => {
+                  const count = f.id === 'all' ? reportsBySelectedType.length : reportsBySelectedType.filter(r => r.status === f.id).length;
+                  const isActive = modalStatusFilter === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setModalStatusFilter(f.id)}
+                      className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                        isActive
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {f.label}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          isActive
+                            ? "bg-white/20 text-slate-100"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <select
+                value={modalTypeFilter}
+                onChange={(e) => setModalTypeFilter(e.target.value)}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 outline-none hover:bg-slate-50 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all cursor-pointer"
+              >
+                <option value="all">All Types</option>
+                <option value="damage">Damage</option>
+                <option value="lost">Lost</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-              {filedReports.map((r) => (
+              {filteredModalReports.map((r) => (
                 <div
                   key={r._id}
                   className="flex items-start justify-between border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 p-2 rounded-xl transition-colors"
@@ -402,15 +466,15 @@ function AdminReports() {
                       Filed on: {new Date(r.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : r.type === 'lost' ? 'bg-purple-100 text-purple-700' : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <div className="flex flex-col items-stretch gap-2">
+                    <div className={`text-center text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-md whitespace-nowrap ${r.type === 'damage' ? 'bg-red-100 text-red-700' : r.type === 'lost' ? 'bg-purple-100 text-purple-700' : r.type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
                       {r.type}
                     </div>
                     <select
                       value={r.status}
                       onChange={(e) => handleStatusChange(r._id, e.target.value)}
                       disabled={r.status === 'resolved'}
-                      className={`text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md outline-none border-none appearance-none ${statusColor(r.status)} ${r.status === 'resolved' ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`text-center text-xs font-medium uppercase tracking-wider px-2 py-1 rounded-md outline-none border-none appearance-none ${statusColor(r.status)} ${r.status === 'resolved' ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <option value="open">Open</option>
                       <option value="in_progress">In Progress</option>
@@ -419,8 +483,8 @@ function AdminReports() {
                   </div>
                 </div>
               ))}
-              {filedReports.length === 0 && (
-                <div className="text-center text-slate-500 py-12">No reports have been filed yet.</div>
+              {filteredModalReports.length === 0 && (
+                <div className="text-center text-slate-500 py-12">No reports found matching your filters.</div>
               )}
             </div>
           </div>

@@ -114,7 +114,14 @@ export const createEmployee = async (req, res) => {
 
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find({}).populate({
+    const adminRole = await Role.findOne({ name: "admin" });
+    let adminUserIds = [];
+    if (adminRole) {
+      const adminUsers = await User.find({ role: adminRole._id }).select("_id");
+      adminUserIds = adminUsers.map((u) => u._id);
+    }
+
+    const employees = await Employee.find({ userId: { $nin: adminUserIds } }).populate({
       path: "userId",
       select: "userId email role",
       populate: { path: "role", select: "name" },

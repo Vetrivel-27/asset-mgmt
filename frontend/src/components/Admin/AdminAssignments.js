@@ -174,11 +174,6 @@ function AdminAssignments() {
     canPrev, canNext, prev, next,
   } = usePagination({ data: sortedAssignments, pageSize: 6, resetDeps: [filter, statusFilter] });
 
-  // Only show employees that do not have an 'admin' role
-  const nonAdminEmployees = employees.filter(
-    (emp) => emp.userId?.role?.name?.toLowerCase() !== "admin",
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -255,7 +250,7 @@ function AdminAssignments() {
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
                 >
                   <option value="">Select employee</option>
-                  {nonAdminEmployees.map((emp) => (
+                  {employees.map((emp) => (
                     <option key={emp._id} value={emp._id}>
                       {emp.name} (
                       {emp.employeeId || emp.userId?.userId || "No ID"})

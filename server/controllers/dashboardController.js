@@ -1,6 +1,9 @@
 import Asset from '../models/Asset.js';
 import Employee from '../models/Employee.js';
 import AssetReport from '../models/AssetReport.js';
+import User from '../models/User.js';
+import Role from '../models/Role.js';
+
 
 export const getDashboardStats = async (req, res) => {
     try {
@@ -11,8 +14,14 @@ export const getDashboardStats = async (req, res) => {
         const damagedAssets = await Asset.countDocuments({ status:'damaged'});
         const repairAssets = await Asset.countDocuments({ status:'repair'});
         const unavailableAssets = await Asset.countDocuments({ status: { $in: ['damaged', 'repair'] } });
-        //Other counts
-        const totalEmployees = await Employee.countDocuments();
+        const adminRole = await Role.findOne({ name: 'admin' });
+        let adminUserIds = [];
+        if (adminRole) {
+            const adminUsers = await User.find({ role: adminRole._id }).select('_id');
+            adminUserIds = adminUsers.map(u => u._id);
+        }
+        
+        const totalEmployees = await Employee.countDocuments({ userId: { $nin: adminUserIds } });
         const openDamageReports = await AssetReport.countDocuments({ type:'damage', status:'open' });
 
         res.status(200).json({
