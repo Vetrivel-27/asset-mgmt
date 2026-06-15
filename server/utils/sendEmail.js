@@ -1,29 +1,30 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const sendEmail = async (options) =>{
-    const transporter = nodemailer.createTransport({
-        host:process.env.EMAIL_HOST,
-        port:process.env.EMAIL_PORT,
-        secure:false,
-        auth:{
-            user:process.env.EMAIL_USER,
-            pass:process.env.EMAIL_PASS
-        }
-    });
+const sendEmail = async (options) => {
+    if (!process.env.RESEND_API_KEY) {
+        console.error("RESEND_API_KEY is not defined in environment variables!");
+        throw new Error("Email configuration error: RESEND_API_KEY is missing");
+    }
 
-    const mailOptions = {
-        from: `Asset management system <${process.env.EMAIL_USER}>`,
-        to:options.email,
-        subject:options.subject,
-        text:options.text,
-        html:options.html
-    };
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
 
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Email successfully sent to ${options.email}`);
+        const { data, error } = await resend.emails.send({
+            from: `Asset Flow Portal <${fromEmail}>`,
+            to: options.email,
+            subject: options.subject,
+            html: options.html,
+        });
+
+        if (error) {
+            console.error("Resend API error:", error);
+            throw new Error(error.message);
+        }
+
+        console.log(`Email successfully sent to ${options.email} (Resend ID: ${data?.id})`);
     } catch (error) {
-        console.error("Error in sendEmail transporter:", error);
+        console.error("Error in sendEmail (Resend):", error);
         throw error;
     }
 }
