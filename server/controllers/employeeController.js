@@ -11,7 +11,11 @@ export const getEmployeeProfile = async (req, res) => {
     const employee = await Employee.findOne({ userId: req.user.id }).populate({
       path: "userId",
       select: "userId email role",
-      populate: { path: "role", select: "name" },
+      populate: {
+        path: "role",
+        select: "name permissions",
+        populate: { path: "permissions", model: "Permission" },
+      },
     });
     if (!employee) {
       return res.status(404).json({ message: "Employee profile not found" });
@@ -171,7 +175,11 @@ export const getMyEmployeeProfile = async (req, res) => {
     const employee = await Employee.findOne({ userId: req.user.id }).populate({
       path: "userId",
       select: "userId email role",
-      populate: { path: "role", select: "name" },
+      populate: {
+        path: "role",
+        select: "name permissions",
+        populate: { path: "permissions", model: "Permission" },
+      },
     });
 
     if (!employee) {

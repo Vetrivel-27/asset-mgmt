@@ -69,30 +69,20 @@ function SidebarIcon({ name, className = "h-5 w-5" }) {
 
 const SIDEBAR_W = 272;
 
-const ADMIN_NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { to: "/dashboard", end: true, label: "Dashboard", permission: "view_dashboard", icon: "dashboard" },
   { to: "/dashboard/assets", label: "Assets", permission: "manage_asset", icon: "assets" },
-  { to: "/dashboard/employees", label: "Employees", permission: "view_users", icon: "employees" },
-  { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow", icon: "requests" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
-  { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"], icon: "reports" },
-  { to: "/dashboard/roles", label: "Roles", permission: "manage_roles", icon: "roles" },
-];
-
-const EMPLOYEE_NAV_ITEMS = [
   { to: "/dashboard/my-assets", label: "Assets", permission: "view_asset", employeeOnly: true, icon: "assets" },
+  { to: "/dashboard/employees", label: "Employees", permission: "view_users", icon: "employees" },
+  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
   { to: "/dashboard/status", label: "Status", permission: "return_asset", employeeOnly: true, icon: "status" },
   { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow", icon: "requests" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
-  { to: "/dashboard/report", label: "Report Damage", permission: "report_damage", employeeOnly: true, icon: "damage" },
   { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"], icon: "reports" },
-  { to: "/dashboard/history", label: "History", permission: "view_asset", employeeOnly: true, icon: "history" },
-  
-  // Fallbacks if a non-admin role is granted other admin-level permissions
-  { to: "/dashboard", end: true, label: "Dashboard", permission: "view_dashboard", icon: "dashboard" },
-  { to: "/dashboard/employees", label: "Employees", permission: "view_users", icon: "employees" },
+  { to: "/dashboard/report", label: "Report Damage", permission: "report_damage", employeeOnly: true, icon: "damage" },
   { to: "/dashboard/roles", label: "Roles", permission: "manage_roles", icon: "roles" },
+  { to: "/dashboard/history", label: "History", permission: "view_asset", employeeOnly: true, icon: "history" },
 ];
+
 
 function DashboardLayout() {
   const navigate = useNavigate();
@@ -103,6 +93,14 @@ function DashboardLayout() {
   const [profile, setProfile] = useState({
     name: sessionStorage.getItem("userName") || "User",
     role: sessionStorage.getItem("userRole") || "",
+  });
+  const [permissions, setPermissions] = useState(() => {
+    try {
+      const p = sessionStorage.getItem("userPermissions");
+      return p ? JSON.parse(p) : [];
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -119,7 +117,13 @@ function DashboardLayout() {
         if (mounted && res.ok) {
           const name = data.name || data.userId?.userId || "User";
           const role = data.userId?.role?.name || sessionStorage.getItem("userRole") || "";
+          const permissionNames = data.userId?.role?.permissions?.map(p => p.name) || [];
+
           setProfile({ name, role });
+          if (permissionNames.length > 0) {
+            setPermissions(permissionNames);
+            sessionStorage.setItem("userPermissions", JSON.stringify(permissionNames));
+          }
           sessionStorage.setItem("userName", name);
           sessionStorage.setItem("userRole", role.toLowerCase());
         }
@@ -170,11 +174,14 @@ function DashboardLayout() {
 
   // Dynamically filter nav items based on permissions
   const navItems = useMemo(() => {
-    const sourceArray = adminUser ? ADMIN_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
-
-    const filtered = sourceArray.filter((item) => {
-      // Hide employee-specific items from admin
+    const filtered = ALL_NAV_ITEMS.filter((item) => {
+      // Hide employee-specific items from core admin
       if (adminUser && item.employeeOnly) return false;
+
+      // Hide employee Assets tab if they have manage_asset permission (to avoid duplicates)
+      if (item.to === "/dashboard/my-assets" && canAccess("manage_asset")) {
+        return false;
+      }
 
       // Normal permission check
       if (Array.isArray(item.permission)) {
@@ -191,7 +198,8 @@ function DashboardLayout() {
     }
 
     return filtered;
-  }, [adminUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminUser, permissions]);
 
   // If user hits the base `/dashboard` but doesn't have `view_dashboard`, redirect them
   useEffect(() => {
