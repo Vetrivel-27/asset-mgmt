@@ -108,21 +108,18 @@ export const forgotPassword = async (req, res) =>{
         <p>Or click the link below to directly create a new password. This link is valid for only 10 minutes.</p>
         <a href="${resetUrl}">${resetUrl}</a>`;
 
-        try{
-            await sendEmail({
-                email:user.email, subject:'Assest managemet - Password reset request', html:message
-            });
-            res.status(200).json({message: 'Email sent successfully'});
-        }
-        catch(e){
-            console.error("Failed to send password reset email:", e);
-            user.resetPasswordToken =undefined;
-            user.resetPasswordExpires = undefined;
-            user.resetPasswordOtp = undefined;
-            user.resetPasswordOtpExpires = undefined;
-            await user.save();
-            return res.status(500).json({message:"Failed to send email.Please try again."})
-        }
+        // Send email in the background to avoid blocking the HTTP response
+        sendEmail({
+            email: user.email, 
+            subject: 'Asset Management - Password reset request', 
+            html: message
+        }).then(() => {
+            console.log(`Password reset email sent to: ${user.email}`);
+        }).catch(e => {
+            console.error("Failed to send password reset email in background:", e);
+        });
+
+        res.status(200).json({ message: 'If the email matches an account, a reset link/OTP has been sent.' });
     }
     catch(e){
         res.status(500).json({message:"Server error"})
