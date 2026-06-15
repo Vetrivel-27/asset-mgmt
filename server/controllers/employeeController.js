@@ -78,16 +78,16 @@ export const createEmployee = async (req, res) => {
             <p>This link will expire in 24 hours.</p>
         `;
 
-    try {
-      await sendEmail({
-        email,
-        subject: "Account Created - Asset Management System",
-        html: message,
-      });
+    // Send setup email in the background to avoid blocking the client request
+    sendEmail({
+      email,
+      subject: "Account Created - Asset Management System",
+      html: message,
+    }).then(() => {
       console.log(`Setup email sent to ${email}`);
-    } catch (e) {
-      console.error("Failed to send email:", e);
-    }
+    }).catch((e) => {
+      console.error("Failed to send setup email:", e);
+    });
 
     // Return employee with user info populated
     const populatedEmployee = await Employee.findById(employee._id).populate({
@@ -215,16 +215,16 @@ export const updateEmployee = async (req, res) => {
             <p>This link will expire in 24 hours.</p>
         `;
 
-        try {
-          await sendEmail({
-            email: req.body.email,
-            subject: "Email Updated - Asset Management System",
-            html: message,
-          });
+        // Send update email in the background to avoid blocking the client request
+        sendEmail({
+          email: req.body.email,
+          subject: "Email Updated - Asset Management System",
+          html: message,
+        }).then(() => {
           console.log(`Password reset email sent to updated address: ${req.body.email}`);
-        } catch (e) {
+        }).catch((e) => {
           console.error("Failed to send email on update:", e);
-        }
+        });
       } else if (req.body.email) {
         userUpdate.email = req.body.email;
       }
