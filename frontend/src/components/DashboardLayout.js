@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { API_URL } from "../config";
 import { canAccess, canAccessAny, isAdmin } from "../permissions";
 
-/* ─── Animated hamburger icon ───────────────────────────────────────────────── */
+/* Animated hamburger icon */
 function HamburgerIcon({ open }) {
   const bar = "block h-[2px] w-5 rounded-full bg-slate-800 transition-all duration-300 ease-in-out";
   return (
@@ -117,7 +117,7 @@ function DashboardLayout() {
         });
         const data = await res.json();
         if (mounted && res.ok) {
-          const name = data.name || data.userId?.userId || "User";
+          const name = data.name || data.userId?.displayName || data.userId?.email || "User";
           const role = data.userId?.role?.name || sessionStorage.getItem("userRole") || "";
           setProfile({ name, role });
           sessionStorage.setItem("userName", name);
@@ -220,7 +220,7 @@ function DashboardLayout() {
         style={{ transition: "all 0.4s cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
 
-        {/* ── Sidebar ───────────────────────────────────────────────────── */}
+        {/* Sidebar */}
         <aside
           style={{
             width: open ? SIDEBAR_W : 0,
@@ -287,7 +287,7 @@ function DashboardLayout() {
           </div>
         </aside>
 
-        {/* ── Main content ──────────────────────────────────────────────── */}
+        {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
 
           {/* Top bar */}
@@ -340,7 +340,15 @@ function DashboardLayout() {
                 }`}
               >
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    try {
+                      await fetch(`${API_URL}/api/auth/logout`, {
+                        method: 'POST',
+                        credentials: 'include'
+                      });
+                    } catch (e) {
+                      console.error("Logout failed", e);
+                    }
                     sessionStorage.clear();
                     navigate("/login", { replace: true });
                   }}

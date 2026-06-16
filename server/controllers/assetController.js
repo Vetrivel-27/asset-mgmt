@@ -95,10 +95,10 @@ export const getAssets = async (req, res) => {
       isDeleted: false,
     }).populate({
       path: "employeeId",
-      select: "name department userId",
+      select: "name employeeId department userId",
       populate: {
         path: "userId",
-        select: "userId email",
+        select: "displayName email",
       },
     });
 
@@ -145,10 +145,10 @@ export const getAssetById = async (req, res) => {
         isDeleted: false,
       }).populate({
         path: "employeeId",
-        select: "name department userId",
+        select: "name employeeId department userId",
         populate: {
           path: "userId",
-          select: "userId email",
+          select: "displayName email",
         },
       });
       const assetObj = asset.toObject();
@@ -194,10 +194,10 @@ export const updateAsset = async (req, res) => {
         isDeleted: false,
       }).populate({
         path: "employeeId",
-        select: "name department userId",
+        select: "name employeeId department userId",
         populate: {
           path: "userId",
-          select: "userId email",
+          select: "displayName email",
         },
       });
       const assetObj = updatedAsset.toObject();

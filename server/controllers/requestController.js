@@ -74,12 +74,12 @@ export const createRequest = async (req, res) => {
               email: approver.email,
               subject: `New Borrow Request: ${assetName || assetType}`,
               text:
-                `Hello ${approver.userId || "Approver"},\n\n` +
+                `Hello ${approver.displayName || "Approver"},\n\n` +
                 `Employee ${employee.name} has requested to borrow the asset "${assetName || assetType}" (Reason: ${reason || "Not specified"}).\n\n` +
                 `Please log in to the Asset Management System to approve or reject this request.\n\n` +
                 `Regards,\nAsset Management System`,
               html:
-                `<p>Hello ${approver.userId || "Approver"},</p>` +
+                `<p>Hello ${approver.displayName || "Approver"},</p>` +
                 `<p>Employee <strong>${employee.name}</strong> has requested to borrow the asset <strong>"${assetName || assetType}"</strong>.</p>` +
                 `<p><strong>Reason:</strong> ${reason || "Not specified"}</p>` +
                 `<p>Please log in to the Asset Management System to approve or reject this request.</p>` +
@@ -132,8 +132,8 @@ export const getAllRequests = async (req, res) => {
     const requests = await Request.find({})
       .populate({
         path: "employeeId",
-        select: "name department",
-        populate: { path: "userId", select: "userId email" },
+        select: "name employeeId department",
+        populate: { path: "userId", select: "displayName email" },
       })
       .populate("assignedAssetId", "name assetId")
       .populate("requestedAssetId", "name assetId type")

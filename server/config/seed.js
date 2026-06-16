@@ -68,7 +68,7 @@ export const seedDatabase = async () => {
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash("admin123", 10);
       await User.create({
-        userId: "0000",
+        displayName: "System Admin",
         email: "admin@test.com",
         password: hashedPassword,
         role: adminRole._id,

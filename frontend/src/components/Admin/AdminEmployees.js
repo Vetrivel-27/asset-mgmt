@@ -16,7 +16,7 @@ const getAuthHeaders = () => {
 const normalizeEmployee = (employee) => ({
   ...employee,
   email: employee.email || employee.userId?.email || "",
-  employeeId: employee.employeeId || employee.userId?.userId || "",
+  employeeId: employee.employeeId || "",
   roleId: employee.roleId || employee.userId?.role?._id || "",
   roleName: employee.roleName || employee.userId?.role?.name || "",
 });

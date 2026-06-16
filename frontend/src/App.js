@@ -17,10 +17,12 @@ import ProtectedRoute from "./components/ProtectedRoute.js";
 import PublicRoute from "./components/PublicRoute.js";
 import DashboardLayout from "./components/DashboardLayout.js";
 import PermissionRoute from "./components/PermissionRoute.js";
+import SessionManager from "./components/SessionManager.js";
 
 function App() {
   return (
     <BrowserRouter>
+      <SessionManager />
       <Routes>
         {/* Public-only routes: redirect to dashboard if already logged in */}
         <Route element={<PublicRoute />}>

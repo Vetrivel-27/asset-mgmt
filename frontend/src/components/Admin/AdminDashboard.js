@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
 import CanAccess from "../CanAccess";
 
-// ── tiny icon components ────────────────────────────────────────────────────
+// tiny icon components
 const Icon = ({ d }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
        strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -16,13 +16,13 @@ const ASSET_CATEGORIES = [
   "Monitor", "Keyboard", "Mouse", "Printer",
 ];
 
-// ── helper ───────────────────────────────────────────────────────────────────
+// helper
 function getAuthHeaders() {
   const token = sessionStorage.getItem("authToken");
   return { Authorization: `Bearer ${token}` };
 }
 
-// ── Collapsible quick-action panel ──────────────────────────────────────────
+// Collapsible quick-action panel
 function QuickPanel({ open, children }) {
   return (
     <div
@@ -39,7 +39,7 @@ function QuickPanel({ open, children }) {
   );
 }
 
-// ── Add-Asset mini form ──────────────────────────────────────────────────────
+// Add-Asset mini form
 function AddAssetForm({ onSuccess, onCancel }) {
   const [name, setName] = useState("");
   const [assetId, setAssetId] = useState("");
@@ -140,7 +140,7 @@ function AddAssetForm({ onSuccess, onCancel }) {
   );
 }
 
-// ── Register-Employee mini form ──────────────────────────────────────────────
+// Register-Employee mini form
 function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }) {
   const [name, setName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -248,7 +248,7 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
   );
 }
 
-// ── Main Dashboard ───────────────────────────────────────────────────────────
+// Main Dashboard
 function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ assets: 0, employees: 0, activeAssignments: 0 });
@@ -398,7 +398,7 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Stat cards ─────────────────────────────────────────────────── */}
+      {/* Stat cards */}
       <div className="grid gap-5 md:grid-cols-3">
         {statCards.map((card) => (
           <div
@@ -414,7 +414,7 @@ function AdminDashboard() {
         ))}
       </div>
 
-      {/* ── Bottom two-column grid ─────────────────────────────────────── */}
+      {/* Bottom two-column grid */}
       <div className="grid gap-5 lg:grid-cols-2">
 
         {/* Recent Activity */}

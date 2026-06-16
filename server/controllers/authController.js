@@ -6,25 +6,22 @@ import sendEmail from '../utils/sendEmail.js';
 
 export const register = async(req, res) => {
     try{
-        const{userId, username, email, password, roleId} = req.body;
+        const{username, email, password, roleId} = req.body;
         const existingUser = await User.findOne({email});
         if(existingUser){
             return res.status(400).json({message: "Email already exists"});
         }
         const saltRounds = 10;
         const hashedPwd = await bcrypt.hash(password, saltRounds);
-        let formattedUserId = String(userId || username || "").trim();
-        if (/^\d{1,4}$/.test(formattedUserId)) {
-            formattedUserId = formattedUserId.padStart(4, '0');
-        }
         const newUser = new User({
-            userId: formattedUserId, email, password: hashedPwd, role: roleId, createdBy: req.user?.id
+            displayName: username || email.split("@")[0],
+            email, password: hashedPwd, role: roleId, createdBy: req.user?.id
         });
         await newUser.save();
         res.status(201).json({
             message: 'User registered successfully',
             user:{
-                id:newUser._id, userId: newUser.userId, roleId: newUser.role
+                id:newUser._id, displayName: newUser.displayName, roleId: newUser.role
             }
         });
     }
@@ -65,12 +62,28 @@ export const login = async(req, res) => {
             roleId: user.role._id
         }, process.env.JWT_SECRET, { expiresIn: '1h'});
 
+        const refreshToken = jwt.sign(
+            { id: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '2h' }
+        );
+
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        res.cookie('jwt', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 3 * 24 * 60 * 60 * 1000 // 3 days
+        });
+
         res.json({
             message: "Login successful",
             token,
             user:{
                 id: user._id,
-                userId: user.userId,
+                displayName: user.displayName,
                 email:user.email,
                 roleName: user.role.name,
                 permissions:permissionNames
@@ -80,6 +93,60 @@ export const login = async(req, res) => {
     catch(e){
         console.error(e.message);
         res.status(500).json({message:"Server error"});
+    }
+};
+
+export const refreshUserToken = async (req, res) => {
+    try {
+        const cookies = req.cookies;
+        if (!cookies?.jwt) return res.status(401).json({ message: "Unauthorized" });
+        const refreshToken = cookies.jwt;
+
+        const user = await User.findOne({ refreshToken }).populate({
+            path: 'role', populate: { path: 'permissions', model: 'Permission' }
+        });
+        if (!user) return res.status(403).json({ message: "Forbidden" });
+
+        jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => {
+            if (err || user._id.toString() !== decoded.id) return res.status(403).json({ message: "Forbidden" });
+            
+            const token = jwt.sign(
+                { id: user._id, roleId: user.role._id },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+            const permissionNames = user.role.permissions.map(perm => perm.name);
+            res.json({ token, user: {
+                id: user._id,
+                displayName: user.displayName,
+                email: user.email,
+                roleName: user.role.name,
+                permissions: permissionNames
+            } });
+        });
+    } catch (e) {
+        console.error("Refresh Token Error:", e.message);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const logout = async (req, res) => {
+    try {
+        const cookies = req.cookies;
+        if (!cookies?.jwt) return res.sendStatus(204);
+        const refreshToken = cookies.jwt;
+        
+        const user = await User.findOne({ refreshToken });
+        if (user) {
+            user.refreshToken = null;
+            await user.save();
+        }
+        
+        res.clearCookie('jwt', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+        res.sendStatus(204);
+    } catch (e) {
+        console.error("Logout Error:", e.message);
+        res.status(500).json({ message: "Server error" });
     }
 };
 

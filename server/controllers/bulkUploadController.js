@@ -121,8 +121,9 @@ export const bulkUpload = async (req, res) => {
                         throw new Error("Employee ID must be a number up to 4 digits.");
                     }
 
-                    const userExists = await User.findOne({ $or: [{ userId: employeeId }, { email }] });
-                    if (userExists) {
+                    const userExists = await User.findOne({ email });
+                    const employeeExists = await Employee.findOne({ employeeId });
+                    if (userExists || employeeExists) {
                         summary.employees.skipped++;
                         details.employees.push({ row: rowNum, status: 'skipped', name, message: 'User with this ID or email already exists.' });
                         continue;
@@ -138,7 +139,7 @@ export const bulkUpload = async (req, res) => {
                     const hashedPassword = await bcrypt.hash("pass123", 10);
 
                     const newUser = await User.create({
-                        userId: employeeId,
+                        displayName: name,
                         email,
                         role: role._id,
                         password: hashedPassword,

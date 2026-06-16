@@ -58,7 +58,7 @@ export const getAllReports = async (req, res) =>{
         .populate({
             path: 'employeeId',
             select: 'name department',
-            populate: { path: 'userId', select: 'userId email' }
+            populate: { path: 'userId', select: 'displayName email' }
         })
         .populate('assetId','assetId name')
         .sort({createdAt:-1});
@@ -131,7 +131,7 @@ export const updateReportStatus = async(req, res)=>{
 
         // Re-fetch fully populated report to return
         const updatedReport = await AssetReport.findById(report._id)
-            .populate({ path: 'employeeId', select: 'name department', populate: { path: 'userId', select: 'userId email' }})
+            .populate({ path: 'employeeId', select: 'name department', populate: { path: 'userId', select: 'displayName email' }})
             .populate('assetId', 'assetId name status');
 
         res.status(200).json({message:`Report marked as ${status}`, report: updatedReport});

@@ -102,9 +102,10 @@ function AdminRequests() {
     
     const term = search.toLowerCase();
     const empName = req.employeeId?.name?.toLowerCase() || "";
+    const empId = req.employeeId?.employeeId?.toLowerCase() || "";
     const empDept = req.employeeId?.department?.toLowerCase() || "";
     const type = req.assetType?.toLowerCase() || "";
-    const searchMatches = empName.includes(term) || empDept.includes(term) || type.includes(term);
+    const searchMatches = empName.includes(term) || empId.includes(term) || empDept.includes(term) || type.includes(term);
 
     return statusMatches && searchMatches;
   });
@@ -297,7 +298,7 @@ function AdminRequests() {
                     <td className="px-4 py-4 text-sm text-center w-1/6 truncate">
                       <div className="font-medium text-slate-900 truncate">{req.employeeId?.name || "Unknown"}</div>
                       <div className="text-xs text-slate-500 truncate">
-                        ID: {req.employeeId?.userId?.userId || "—"}
+                        ID: {req.employeeId?.employeeId || "—"}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-center w-1/6 truncate">

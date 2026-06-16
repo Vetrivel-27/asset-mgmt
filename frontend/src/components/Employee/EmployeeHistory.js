@@ -493,11 +493,11 @@ function EmployeeHistory() {
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700 text-sm font-bold">
-                          {(selectedRecord.createdBy?.userId || "Admin").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                          {(selectedRecord.createdBy?.displayName || "Admin").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
                         </div>
                         <div>
                           <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approved By</p>
-                          <p className="text-sm font-bold text-slate-800">{selectedRecord.createdBy?.userId || "System Admin"}</p>
+                          <p className="text-sm font-bold text-slate-800">{selectedRecord.createdBy?.displayName || "System Admin"}</p>
                         </div>
                       </div>
                       {selectedRecord.createdBy?.email && (
@@ -533,7 +533,7 @@ function EmployeeHistory() {
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
                           <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.userId || "System Admin"}</span> on{" "}
+                            Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.displayName || "System Admin"}</span> on{" "}
                             {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
                           </p>
                           {selectedRecord.tentativeReturnDate && (

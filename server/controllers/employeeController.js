@@ -10,7 +10,7 @@ export const getEmployeeProfile = async (req, res) => {
   try {
     const employee = await Employee.findOne({ userId: req.user.id }).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
     if (!employee) {
@@ -37,11 +37,10 @@ export const createEmployee = async (req, res) => {
       return res.status(400).json({ message: "Employee ID must be a number up to 4 digits." });
     }
 
-    // Check if user with this email or userId already exists
-    const userExists = await User.findOne({
-      $or: [{ userId: formattedEmployeeId }, { email }],
-    });
-    if (userExists) {
+    // Check if user with this email or employee ID already exists
+    const userExists = await User.findOne({ email });
+    const employeeExists = await Employee.findOne({ employeeId: formattedEmployeeId });
+    if (userExists || employeeExists) {
       return res
         .status(400)
         .json({ message: "User with this ID or email already exists" });
@@ -61,7 +60,7 @@ export const createEmployee = async (req, res) => {
     const hashedPassword = await bcrypt.hash("pass123", 10);
 
     const newUser = await User.create({
-      userId: formattedEmployeeId,
+      displayName: name,
       email,
       role: employeeRole._id,
       password: hashedPassword,
@@ -73,6 +72,7 @@ export const createEmployee = async (req, res) => {
     const employee = await Employee.create({
       name,
       department,
+      employeeId: formattedEmployeeId,
       userId: newUser._id,
       createdBy: req.user.id,
     });
@@ -102,7 +102,7 @@ export const createEmployee = async (req, res) => {
     // Return employee with user info populated
     const populatedEmployee = await Employee.findById(employee._id).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
     res.status(201).json(populatedEmployee);
@@ -123,7 +123,7 @@ export const getEmployees = async (req, res) => {
 
     const employees = await Employee.find({ userId: { $nin: adminUserIds } }).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
 
@@ -152,7 +152,7 @@ export const getEmployeeById = async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
     if (employee) {
@@ -170,7 +170,7 @@ export const getMyEmployeeProfile = async (req, res) => {
   try {
     const employee = await Employee.findOne({ userId: req.user.id }).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
 
@@ -195,7 +195,7 @@ export const updateEmployee = async (req, res) => {
     employee.name = req.body.name || employee.name;
     employee.department = req.body.department || employee.department;
 
-    // Update User fields (email, userId, and role live in User now!)
+    // Update User fields; the employee ID lives on Employee.
     if (req.body.email || req.body.employeeId || req.body.roleId) {
       const userUpdate = {};
       if (req.body.email) {
@@ -205,6 +205,9 @@ export const updateEmployee = async (req, res) => {
         }
         userUpdate.email = req.body.email;
       }
+      if (req.body.name) {
+        userUpdate.displayName = req.body.name;
+      }
       if (req.body.employeeId) {
         let formattedEmployeeId = String(req.body.employeeId).trim();
         if (/^\d{1,4}$/.test(formattedEmployeeId)) {
@@ -213,11 +216,11 @@ export const updateEmployee = async (req, res) => {
         if (!/^\d{4}$/.test(formattedEmployeeId)) {
           return res.status(400).json({ message: "Employee ID must be a number up to 4 digits." });
         }
-        const idExists = await User.findOne({ userId: formattedEmployeeId, _id: { $ne: employee.userId }, isDeleted: false });
-        if (idExists) {
+        const empIdExists = await Employee.findOne({ employeeId: formattedEmployeeId, _id: { $ne: employee._id }, isDeleted: false });
+        if (empIdExists) {
           return res.status(400).json({ message: "An employee with this ID already exists." });
         }
-        userUpdate.userId = formattedEmployeeId;
+        employee.employeeId = formattedEmployeeId;
       }
       if (req.body.roleId) userUpdate.role = req.body.roleId;
       await User.findByIdAndUpdate(employee.userId, userUpdate, { runValidators: true });
@@ -226,7 +229,7 @@ export const updateEmployee = async (req, res) => {
     const updatedEmployee = await employee.save();
     const populated = await Employee.findById(updatedEmployee._id).populate({
       path: "userId",
-      select: "userId email role",
+      select: "email displayName role",
       populate: { path: "role", select: "name" },
     });
     res.json(populated);

@@ -6,7 +6,7 @@ import Pagination from "../Pagination";
 import { useTableSort } from "../../hooks/useTableSort";
 import { usePagination } from "../../hooks/usePagination";
 
-// ── icons (inline SVG so no extra dependency) ──────────────────────────────
+// icons (inline SVG so no extra dependency) 
 const BoxIcon = ({ color = "text-yellow-500" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
        className={`h-6 w-6 ${color}`}>
@@ -46,7 +46,7 @@ function RequestStatusBadge() {
   );
 }
 
-// ── Main page ───────────────────────────────────────────────────────────────
+// Main page
 function EmployeeStatus() {
   const [assignments, setAssignments] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -182,7 +182,7 @@ function EmployeeStatus() {
         </div>
       ) : (
         <>
-          {/* ── Active assignments ─────────────────────────────────────── */}
+          {/* Active assignments */}
           <section>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">
               Currently Assigned
@@ -267,7 +267,7 @@ function EmployeeStatus() {
             )}
           </section>
 
-          {/* ── Pending Requests ───────────────────────────────────────── */}
+          {/* Pending Requests */}
           {pendingRequests.length > 0 && (
             <section>
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">
@@ -335,7 +335,7 @@ function EmployeeStatus() {
             </section>
           )}
 
-          {/* ── Return history ─────────────────────────────────────────── */}
+          {/* Return history */}
           {returnedAssignments.length > 0 && (
             <section>
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">

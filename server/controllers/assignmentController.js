@@ -88,7 +88,7 @@ export const getAllAssignments = async (req, res) => {
       .populate({
         path: "employeeId",
         select: "name department",
-        populate: { path: "userId", select: "userId email" },
+        populate: { path: "userId", select: "displayName email" },
       })
       .lean();
 
@@ -100,7 +100,7 @@ export const getAllAssignments = async (req, res) => {
 
       if (createdByIds.length > 0) {
         // Fetch User docs for createdBy
-        const users = await User.find({ _id: { $in: createdByIds } }).select("userId email").lean();
+        const users = await User.find({ _id: { $in: createdByIds } }).select("email displayName").lean();
         const userMap = {};
         users.forEach(u => { userMap[u._id.toString()] = u; });
 
@@ -151,7 +151,7 @@ export const getMyAssignments = async (req, res) => {
       )];
 
       if (createdByIds.length > 0) {
-        const users = await User.find({ _id: { $in: createdByIds } }).select("userId email").lean();
+        const users = await User.find({ _id: { $in: createdByIds } }).select("email displayName").lean();
         const userMap = {};
         users.forEach(u => { userMap[u._id.toString()] = u; });
 

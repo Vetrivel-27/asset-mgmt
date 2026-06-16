@@ -19,6 +19,7 @@ function LogIn({ onLogin }) {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -43,7 +44,7 @@ function LogIn({ onLogin }) {
       );
       sessionStorage.setItem(
         "userName",
-        data.user.userId || data.user.email || "User",
+        data.user.displayName || data.user.email || "User",
       );
 
       if (roleName !== "admin") {

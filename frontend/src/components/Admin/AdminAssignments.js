@@ -253,7 +253,7 @@ function AdminAssignments() {
                   {employees.map((emp) => (
                     <option key={emp._id} value={emp._id}>
                       {emp.name} (
-                      {emp.employeeId || emp.userId?.userId || "No ID"})
+                      {emp.employeeId || "No ID"})
                     </option>
                   ))}
                 </select>
@@ -344,7 +344,7 @@ function AdminAssignments() {
                 <tr>
                   <SortableHeader label="Asset" sortKey="assetId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
                   <SortableHeader label="Assigned To" sortKey="employeeId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
-                  <SortableHeader label="Assigned By" sortKey="createdBy.userId" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
+                  <SortableHeader label="Assigned By" sortKey="createdBy.displayName" currentSort={sortConfig} requestSort={requestSort} className="w-1/6" />
                   <SortableHeader label="Assigned Date" sortKey="assignedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
                   <SortableHeader label="Due Date" sortKey="tentativeReturnDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
                   <SortableHeader label="Status" sortKey="returnedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/6 text-center" />
@@ -368,7 +368,7 @@ function AdminAssignments() {
                   const employeeName = employee
                     ? employee.name
                     : assignment.assignedTo || "—";
-                  const empUserId = employee?.userId?.userId || "";
+                  const empUserId = employee?.employeeId || "";
 
                   const isReturned = !!assignment.returnedDate;
                   const dueDate = assignment.tentativeReturnDate;
@@ -384,8 +384,8 @@ function AdminAssignments() {
                   const createdByObj = typeof assignment.createdBy === "object" ? assignment.createdBy : null;
                   
                   // Use employee details if available, fallback to user details, otherwise "—"
-                  const assignedBy = assignerEmp ? assignerEmp.name : (createdByObj ? createdByObj.userId : "—");
-                  const assignedBySubtext = createdByObj ? createdByObj.userId : "";
+                  const assignedBy = assignerEmp ? assignerEmp.name : (createdByObj ? createdByObj.displayName : "—");
+                  const assignedBySubtext = createdByObj ? createdByObj.displayName : "";
 
                   return (
                     <tr key={assignment._id || assignment.id} className="hover:bg-slate-50 transition-colors">

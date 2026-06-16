@@ -656,7 +656,7 @@ function AdminAssets({ onReturnToCatalogue }) {
                             {asset.assignedTo.name}
                           </span>
                           <span className="text-xs text-slate-400">
-                            ID: {asset.assignedTo.userId?.userId || "—"}
+                            ID: {asset.assignedTo.employeeId || "—"}
                           </span>
                         </div>
                       ) : (
