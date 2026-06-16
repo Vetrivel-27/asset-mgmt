@@ -15,11 +15,17 @@ export const bulkUpload = async (req, res) => {
 
     try {
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+        const toDateString = (d) => {
+            if (!d) return '';
+            const dateObj = new Date(d);
+            if (isNaN(dateObj.getTime())) return '';
+            return dateObj.toISOString().split('T')[0];
+        };
 
         const summary = {
             roles: { total: 0, created: 0, updated: 0, skipped: 0, errors: 0 },
-            employees: { total: 0, created: 0, skipped: 0, errors: 0 },
-            assets: { total: 0, created: 0, skipped: 0, errors: 0 }
+            employees: { total: 0, created: 0, updated: 0, skipped: 0, errors: 0 },
+            assets: { total: 0, created: 0, updated: 0, skipped: 0, errors: 0 }
         };
         const details = {
             roles: [],
@@ -56,10 +62,40 @@ export const bulkUpload = async (req, res) => {
                         .split(',')
                         .map((s) => s.trim().toLowerCase())
                         .filter(Boolean);
+
+                    const PERMISSION_DEPENDENCIES = {
+                        borrow_asset: ["view_asset", "return_asset", "report_damage"],
+                        return_asset: ["view_asset"],
+                        report_damage: ["view_asset", "view_my_damage"],
+                        view_my_damage: ["view_asset"],
+                        manage_asset: ["view_asset"],
+                        assign_asset: ["view_assignments"],
+                        view_assignments: ["view_asset", "view_users"],
+                        approve_borrow: ["view_asset", "view_users"],
+                        manage_maintenance: ["view_my_damage"],
+                        manage_users: ["view_users"],
+                        manage_roles: ["view_users"],
+                        view_dashboard: ["view_asset", "view_users", "view_assignments"],
+                        view_report: ["view_asset"]
+                    };
+
+                    const expandedPermNames = new Set();
+                    const collectDeps = (name) => {
+                        expandedPermNames.add(name);
+                        const deps = PERMISSION_DEPENDENCIES[name] || [];
+                        deps.forEach((dep) => {
+                            if (!expandedPermNames.has(dep)) {
+                                collectDeps(dep);
+                            }
+                        });
+                    };
+
+                    permNames.forEach(name => collectDeps(name));
+
                     const permIds = [];
                     const unknownPerms = [];
 
-                    for (const pName of permNames) {
+                    for (const pName of expandedPermNames) {
                         if (permMap[pName]) {
                             permIds.push(permMap[pName]);
                         } else {
@@ -76,12 +112,30 @@ export const bulkUpload = async (req, res) => {
 
                     const uniquePermIds = [...new Set(permIds)];
 
-                    const existingRole = await Role.findOne({ name: roleName });
+                    const existingRole = await Role.findOne({ name: { $regex: new RegExp(`^${roleName}$`, 'i') } });
                     if (existingRole) {
-                        existingRole.permissions = uniquePermIds;
-                        await existingRole.save();
-                        summary.roles.updated++;
-                        details.roles.push({ row: rowNum, status: 'updated', name: roleName });
+                        const existingPermStrSet = new Set(existingRole.permissions.map(p => p.toString()));
+                        const newPermStrSet = new Set(uniquePermIds.map(p => p.toString()));
+
+                        let hasChanged = existingPermStrSet.size !== newPermStrSet.size;
+                        if (!hasChanged) {
+                            for (const id of newPermStrSet) {
+                                if (!existingPermStrSet.has(id)) {
+                                    hasChanged = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (hasChanged) {
+                            existingRole.permissions = uniquePermIds;
+                            await existingRole.save();
+                            summary.roles.updated++;
+                            details.roles.push({ row: rowNum, status: 'updated', name: roleName });
+                        } else {
+                            summary.roles.skipped++;
+                            details.roles.push({ row: rowNum, status: 'skipped', name: roleName, message: 'No changes detected for this role.' });
+                        }
                     } else {
                         await Role.create({ name: roleName, permissions: uniquePermIds });
                         summary.roles.created++;
@@ -121,14 +175,79 @@ export const bulkUpload = async (req, res) => {
                         throw new Error("Employee ID must be a number up to 4 digits.");
                     }
 
-                    const userExists = await User.findOne({ $or: [{ userId: employeeId }, { email }] });
-                    if (userExists) {
-                        summary.employees.skipped++;
-                        details.employees.push({ row: rowNum, status: 'skipped', name, message: 'User with this ID or email already exists.' });
+                    const userById = await User.findOne({ userId: employeeId });
+                    const userByEmail = await User.findOne({ email });
+
+                    if (userByEmail && userByEmail.userId !== employeeId) {
+                        throw new Error(`Email '${email}' is already in use by employee ID '${userByEmail.userId}'.`);
+                    }
+
+                    const existingUser = userById || userByEmail;
+                    if (existingUser) {
+                        const existingEmp = await Employee.findOne({ userId: existingUser._id });
+                        if (!existingEmp) {
+                            throw new Error("Linked employee profile not found.");
+                        }
+
+                        const targetRole = await Role.findOne({ name: { $regex: new RegExp(`^${roleName}$`, 'i') } });
+                        if (!targetRole) {
+                            throw new Error(`Role '${roleName}' not found. Please define it in the Roles sheet or create it first.`);
+                        }
+
+                        const hasNameChanged = existingEmp.name?.trim().toLowerCase() !== name.trim().toLowerCase();
+                        const hasDeptChanged = existingEmp.department?.trim().toLowerCase() !== department.trim().toLowerCase();
+                        const hasRoleChanged = existingUser.role?.toString() !== targetRole._id.toString();
+                        const hasEmailChanged = existingUser.email?.trim().toLowerCase() !== email.trim().toLowerCase();
+
+                        if (hasNameChanged || hasDeptChanged || hasRoleChanged || hasEmailChanged) {
+                            if (hasNameChanged) existingEmp.name = name;
+                            if (hasDeptChanged) existingEmp.department = department;
+                            await existingEmp.save();
+
+                            if (hasRoleChanged) {
+                                existingUser.role = targetRole._id;
+                            }
+                            let resetToken = "";
+                            if (hasEmailChanged) {
+                                resetToken = crypto.randomBytes(20).toString("hex");
+                                const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+                                existingUser.email = email;
+                                existingUser.resetPasswordToken = hashedToken;
+                                existingUser.resetPasswordExpires = Date.now() + 24 * 60 * 60 * 1000;
+                            }
+                            await existingUser.save();
+
+                            if (hasEmailChanged && resetToken) {
+                                try {
+                                    const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+                                    const message = `
+                                        <h1>Asset Management System</h1>
+                                        <p>Hello, ${name}! Your email address has been updated to ${email}.</p>
+                                        <p>Please click the link below to set your password for your updated account credentials:</p>
+                                        <a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update Password</a>
+                                        <p>This link will expire in 24 hours.</p>
+                                    `;
+
+                                    sendEmail({
+                                        email,
+                                        subject: 'Email Updated - Password Update Required',
+                                        html: message
+                                    });
+                                } catch (e) {
+                                    console.error("Failed to send email update notification in bulk upload:", e);
+                                }
+                            }
+
+                            summary.employees.updated++;
+                            details.employees.push({ row: rowNum, status: 'updated', name, message: 'Employee updated successfully.' });
+                        } else {
+                            summary.employees.skipped++;
+                            details.employees.push({ row: rowNum, status: 'skipped', name, message: 'No changes detected for this employee.' });
+                        }
                         continue;
                     }
 
-                    const role = await Role.findOne({ name: roleName });
+                    const role = await Role.findOne({ name: { $regex: new RegExp(`^${roleName}$`, 'i') } });
                     if (!role) {
                         throw new Error(`Role '${roleName}' not found. Please define it in the Roles sheet or create it first.`);
                     }
@@ -182,6 +301,7 @@ export const bulkUpload = async (req, res) => {
         if (workbook.SheetNames.includes('Assets')) {
             const assetSheet = xlsx.utils.sheet_to_json(workbook.Sheets['Assets']);
             summary.assets.total = assetSheet.length;
+            const processedAssetsInFile = {};
 
             for (let i = 0; i < assetSheet.length; i++) {
                 const row = assetSheet[i];
@@ -215,27 +335,41 @@ export const bulkUpload = async (req, res) => {
                         throw new Error("Purchase date cannot be in the future.");
                     }
 
-                    if (!assetId) {
-                        const prefix = type.slice(0, 3).toUpperCase();
-                        const count = await Asset.countDocuments({ type });
-                        let seq = count + 1;
-                        assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
-                        let assetExists = await Asset.findOne({ assetId, isDeleted: false });
-                        while (assetExists) {
-                            seq++;
-                            assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
-                            assetExists = await Asset.findOne({ assetId, isDeleted: false });
+                    if (assetId) {
+                        let formattedAssetId = String(assetId).trim();
+                        if (/^\d{1,4}$/.test(formattedAssetId)) {
+                            formattedAssetId = formattedAssetId.padStart(4, "0");
+                        }
+                        if (!/^\d{4}$/.test(formattedAssetId)) {
+                            throw new Error("Asset ID must be a number up to 4 digits.");
+                        }
+                        assetId = formattedAssetId;
+
+                        // Check duplicate in the currently processed batch in this file
+                        const localExisting = processedAssetsInFile[assetId];
+                        if (localExisting) {
+                            throw new Error(`Asset with ID ${assetId} already exists in the file.`);
+                        }
+
+                        // Check duplicate in DB
+                        const dbAsset = await Asset.findOne({ assetId, isDeleted: false });
+                        if (dbAsset) {
+                            throw new Error(`Asset with ID ${assetId} already exists.`);
                         }
                     } else {
-                        const assetExists = await Asset.findOne({ assetId, isDeleted: false });
-                        if (assetExists) {
-                            summary.assets.skipped++;
-                            details.assets.push({ row: rowNum, status: 'skipped', name, message: `Asset with ID ${assetId} already exists.` });
-                            continue;
+                        // Auto-generate numeric only ID
+                        const count = await Asset.countDocuments({});
+                        let seq = count + 1000;
+                        assetId = String(seq);
+                        let assetExists = await Asset.findOne({ assetId, isDeleted: false });
+                        while (assetExists || processedAssetsInFile[assetId]) {
+                            seq++;
+                            assetId = String(seq);
+                            assetExists = await Asset.findOne({ assetId, isDeleted: false });
                         }
                     }
 
-                    await Asset.create({
+                    const newAsset = await Asset.create({
                         name,
                         type,
                         assetId,
@@ -244,6 +378,7 @@ export const bulkUpload = async (req, res) => {
                         createdBy: req.user.id,
                     });
 
+                    processedAssetsInFile[assetId] = { name, type, purchaseDate, doc: newAsset };
                     summary.assets.created++;
                     details.assets.push({ row: rowNum, status: 'created', name });
                 } catch (error) {

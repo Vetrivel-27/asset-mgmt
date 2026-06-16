@@ -161,8 +161,8 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
   const handleSubmit = async (e) => {
     e.preventDefault();
     const finalDepartment = department === "CUSTOM" ? customDepartment.trim() : department.trim();
-    if (!name.trim() || !employeeId.trim() || !email.trim() || !finalDepartment) {
-      setError("Name, ID, email, and department are required."); return;
+    if (!name.trim() || !employeeId.trim() || !email.trim() || !finalDepartment || !roleId) {
+      setError("Name, ID, email, department, and role are required."); return;
     }
     setSubmitting(true); setError("");
     try {
@@ -208,7 +208,7 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" disabled={submitting} className={`mt-1 ${inputCls}`} />
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-slate-600">Employee ID</span>
+          <span className="text-xs font-medium text-slate-600">User ID</span>
           <input value={employeeId} onChange={e => setEmployeeId(e.target.value)} placeholder="EMP-042" disabled={submitting} className={`mt-1 ${inputCls}`} />
         </label>
         <label className="block">
@@ -229,7 +229,7 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
         <label className="block sm:col-span-2">
           <span className="text-xs font-medium text-slate-600">Role</span>
           <select value={roleId} onChange={e => setRoleId(e.target.value)} disabled={submitting} className={`mt-1 ${inputCls}`}>
-            <option value="">Default (Employee)</option>
+            <option value="">Select Role</option>
             {roles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
           </select>
         </label>
@@ -237,7 +237,7 @@ function RegisterEmployeeForm({ roles, dbDepartments = [], onSuccess, onCancel }
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={submitting}
           className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
-          {submitting ? "Registering…" : "Register Employee"}
+          {submitting ? "Registering…" : "Register User"}
         </button>
         <button type="button" onClick={handleCancel} disabled={submitting}
           className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
@@ -376,7 +376,7 @@ function AdminDashboard() {
 
   const statCards = [
     { label: "Total Assets", value: stats.assets, icon: "M20 7l-8-4-8 4m16 0v10l-8 4m0-14L4 17m8 4V11", color: "text-yellow-500" },
-    { label: "Employees", value: stats.employees, icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm10 3a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 5v-2a5 5 0 0 0-4-4.9", color: "text-blue-500" },
+    { label: "Users", value: stats.employees, icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm10 3a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 5v-2a5 5 0 0 0-4-4.9", color: "text-blue-500" },
     { label: "Active Assignments", value: stats.activeAssignments, icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4", color: "text-green-500" },
   ];
 
@@ -496,7 +496,7 @@ function AdminDashboard() {
               >
                 <span className="flex items-center gap-2">
                   <Icon d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm6 3v-1a3 3 0 0 0-3-3" />
-                  Register employee
+                  Register User
                 </span>
                 <span className="text-lg leading-none">{activePanel === "employee" ? "−" : "+"}</span>
               </button>

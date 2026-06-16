@@ -27,9 +27,6 @@ function Pagination({
 }) {
   if (pageCount <= 1) return null;
 
-  /** Build the list of page numbers / ellipses to render. */
-  const pages = buildPageNumbers(page, pageCount);
-
   return (
     <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-slate-500">
@@ -64,27 +61,88 @@ function Pagination({
         </button>
 
         {/* Page Numbers */}
-        {pages.map((p, i) =>
-          p === "…" ? (
-            <span
-              key={`ellipsis-${i}`}
-              className="px-2 text-xs font-bold text-slate-400 select-none"
-            >
-              …
-            </span>
-          ) : (
+        {pageCount <= 3 ? (
+          <>
+            {/* Page 1 */}
             <button
-              key={p}
-              onClick={() => setPage(p)}
+              onClick={() => setPage(1)}
               className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
-                page === p
+                page === 1
                   ? "bg-slate-900 text-white shadow-sm"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              {p}
+              1
             </button>
-          )
+
+            {/* Page 2 (only if pageCount is 3) */}
+            {pageCount === 3 && (
+              <button
+                onClick={() => setPage(2)}
+                className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
+                  page === 2
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                2
+              </button>
+            )}
+
+            {/* Page Last (if pageCount is 2 or 3) */}
+            {pageCount >= 2 && (
+              <button
+                onClick={() => setPage(pageCount)}
+                className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
+                  page === pageCount
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                {pageCount}
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            {/* 1st Page */}
+            <button
+              onClick={() => setPage(1)}
+              className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
+                page === 1
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              1
+            </button>
+
+            {/* Current Page Middle Indicator (curr) */}
+            {page === 1 || page === pageCount ? (
+              <span className="min-w-[32px] px-2 text-center text-xs font-bold text-slate-400 select-none flex items-center justify-center">
+                …
+              </span>
+            ) : (
+              <button
+                onClick={() => setPage(page)}
+                className="min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold bg-slate-900 text-white shadow-sm transition-colors duration-100"
+              >
+                {page}
+              </button>
+            )}
+
+            {/* Last Page */}
+            <button
+              onClick={() => setPage(pageCount)}
+              className={`min-w-[32px] rounded-2xl px-3 py-2 text-xs font-bold transition-colors duration-100 ${
+                page === pageCount
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {pageCount}
+            </button>
+          </>
         )}
 
         {/* Next */}
@@ -115,22 +173,6 @@ function Pagination({
       </div>
     </div>
   );
-}
-
-function buildPageNumbers(current, total) {
-  if (total <= 6) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  if (current <= 2) {
-    return [1, 2, 3, 4, "…", total];
-  }
-
-  if (current >= total - 1) {
-    return [1, "…", total - 3, total - 2, total - 1, total];
-  }
-
-  return [1, "…", current, current + 1, "…", total];
 }
 
 export default Pagination;

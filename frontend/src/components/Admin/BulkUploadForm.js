@@ -10,6 +10,12 @@ const BulkUploadForm = ({ open, onClose, onSuccess, type }) => {
     const [previewData, setPreviewData] = useState(null);
     const fileInputRef = useRef(null);
 
+    const hasAnyErrors = results ? (
+        (results.summary?.assets?.errors || 0) > 0 ||
+        (results.summary?.employees?.errors || 0) > 0 ||
+        (results.summary?.roles?.errors || 0) > 0
+    ) : false;
+
     useEffect(() => {
         if (open) {
             setFile(null);
@@ -169,7 +175,7 @@ const BulkUploadForm = ({ open, onClose, onSuccess, type }) => {
     const renderSummaryItem = (title, sheetData) => {
         if (!sheetData || sheetData.total === 0) return null;
 
-        const hasChanges = (sheetData.created || 0) > 0 || (sheetData.updated || 0) > 0;
+        const hasChanges = (sheetData.created || 0) > 0 || (sheetData.updated || 0) > 0 || (sheetData.errors || 0) > 0;
         if (!hasChanges) return null;
 
         return (
@@ -178,7 +184,6 @@ const BulkUploadForm = ({ open, onClose, onSuccess, type }) => {
                 <div className="flex flex-wrap gap-4 text-xs">
                     <span className="text-green-600 font-medium">Created: {sheetData.created || 0}</span>
                     <span className="text-blue-600 font-medium">Edited: {sheetData.updated || 0}</span>
-                    <span className="text-amber-600 font-medium">Skipped: {sheetData.skipped || 0}</span>
                     <span className="text-red-600 font-medium">Invalid: {sheetData.errors || 0}</span>
                 </div>
             </div>
@@ -371,7 +376,9 @@ const BulkUploadForm = ({ open, onClose, onSuccess, type }) => {
 
                         {!(
                             ((results.summary?.assets?.created || 0) > 0) ||
+                            ((results.summary?.assets?.updated || 0) > 0) ||
                             ((results.summary?.employees?.created || 0) > 0) ||
+                            ((results.summary?.employees?.updated || 0) > 0) ||
                             ((results.summary?.roles?.created || 0) > 0) ||
                             ((results.summary?.roles?.updated || 0) > 0)
                         ) && (
@@ -381,11 +388,13 @@ const BulkUploadForm = ({ open, onClose, onSuccess, type }) => {
                             )}
                     </div>
 
-                    <div className="border-t border-slate-100 pt-3">
-                        {renderErrors('Assets', results.details?.assets)}
-                        {renderErrors('Employees', results.details?.employees)}
-                        {renderErrors('Roles', results.details?.roles)}
-                    </div>
+                    {hasAnyErrors && (
+                        <div className="border-t border-slate-100 pt-3">
+                            {renderErrors('Assets', results.details?.assets)}
+                            {renderErrors('Employees', results.details?.employees)}
+                            {renderErrors('Roles', results.details?.roles)}
+                        </div>
+                    )}
 
                     <div className="flex justify-end pt-3 border-t border-slate-100">
                         <button

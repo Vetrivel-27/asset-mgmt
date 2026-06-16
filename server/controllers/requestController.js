@@ -31,6 +31,40 @@ export const createRequest = async (req, res) => {
       });
     }
 
+    if (requestedAssetId) {
+      const pendingRequest = await Request.findOne({
+        employeeId: employee._id,
+        requestedAssetId,
+        status: "pending"
+      });
+      if (pendingRequest) {
+        return res.status(400).json({
+          message: "You already have a pending request for this asset."
+        });
+      }
+
+      const latestRequest = await Request.findOne({
+        employeeId: employee._id,
+        requestedAssetId
+      }).sort({ createdAt: -1 });
+
+      if (latestRequest && latestRequest.status === "rejected") {
+        const T_reject = latestRequest.updatedAt || latestRequest.createdAt;
+        const Assignment = (await import("../models/Assignment.js")).default;
+        const assignedToSomeoneElse = await Assignment.findOne({
+          assetId: requestedAssetId,
+          employeeId: { $ne: employee._id },
+          assignedDate: { $gt: T_reject }
+        });
+
+        if (!assignedToSomeoneElse) {
+          return res.status(400).json({
+            message: "You cannot request this asset again until it has been assigned to and returned by another user."
+          });
+        }
+      }
+    }
+
     let assetType = req.body.assetType || "General";
     let assetName = "";
     if (requestedAssetId) {
@@ -118,7 +152,40 @@ export const getMyRequests = async (req, res) => {
     const requests = await Request.find({ employeeId: employee._id })
       .populate("assignedAssetId", "name assetId")
       .populate("requestedAssetId", "name assetId type")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Enrich with statusChangedBy employee details
+    try {
+      const statusChangedByIds = [...new Set(
+        requests.map(r => r.statusChangedBy).filter(Boolean)
+      )];
+
+      if (statusChangedByIds.length > 0) {
+        const users = await User.find({ _id: { $in: statusChangedByIds } }).select("userId email").lean();
+        const userMap = {};
+        users.forEach(u => { userMap[u._id.toString()] = u; });
+
+        const userObjIds = users.map(u => u._id);
+        const assignerEmployees = await Employee.find({ userId: { $in: userObjIds } })
+          .select("userId name department").lean();
+        const empMap = {};
+        assignerEmployees.forEach(emp => {
+          empMap[emp.userId.toString()] = emp;
+        });
+
+        requests.forEach(r => {
+          const uid = r.statusChangedBy?.toString();
+          if (uid) {
+            r.statusChangedBy = userMap[uid] || r.statusChangedBy;
+            r.statusChangedEmployee = empMap[uid] || null;
+          }
+        });
+      }
+    } catch (enrichErr) {
+      // Enrichment failed
+    }
+
     res.status(200).json({ requests });
   } catch (e) {
     console.error(e);
@@ -154,6 +221,7 @@ export const updateRequestStatus = async (req, res) => {
       return res.status(404).json({ message: "Request not found." });
     }
     request.status = status;
+    request.statusChangedBy = req.user.id;
     if (status === "approved" && assignedAssetId) {
       const employee = await Employee.findById(request.employeeId).populate({
         path: "userId",
@@ -202,7 +270,7 @@ export const updateRequestStatus = async (req, res) => {
           status: "pending",
         },
         {
-          $set: { status: "rejected" },
+          $set: { status: "rejected", statusChangedBy: req.user.id },
         },
       );
     }

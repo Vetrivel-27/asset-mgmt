@@ -17,24 +17,34 @@ export const createAsset = async (req, res) => {
       }
     }
 
-    if (!assetId || assetId.trim() === "") {
-      const prefix = (type || "GEN").slice(0, 3).toUpperCase();
-      const count = await Asset.countDocuments({ type });
-      let seq = count + 1;
-      assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
-      // Double check uniqueness
-      let assetExists = await Asset.findOne({ assetId, isDeleted: false });
-      while (assetExists) {
-        seq++;
-        assetId = `${prefix}-${String(seq).padStart(3, "0")}`;
-        assetExists = await Asset.findOne({ assetId, isDeleted: false });
+    if (assetId && assetId.trim() !== "") {
+      let formattedAssetId = String(assetId).trim();
+      if (/^\d{1,4}$/.test(formattedAssetId)) {
+        formattedAssetId = formattedAssetId.padStart(4, "0");
       }
-    } else {
+      if (!/^\d{4}$/.test(formattedAssetId)) {
+        return res
+          .status(400)
+          .json({ message: "Asset ID must be a number up to 4 digits." });
+      }
+      assetId = formattedAssetId;
+
       const assetExists = await Asset.findOne({ assetId, isDeleted: false });
       if (assetExists) {
         return res
           .status(400)
-          .json({ message: "Asset with this ID already exists" });
+          .json({ message: `Asset with ID ${assetId} already exists.` });
+      }
+    } else {
+      // Auto-generate numeric only ID
+      const count = await Asset.countDocuments({});
+      let seq = count + 1000;
+      assetId = String(seq);
+      let assetExists = await Asset.findOne({ assetId, isDeleted: false });
+      while (assetExists) {
+        seq++;
+        assetId = String(seq);
+        assetExists = await Asset.findOne({ assetId, isDeleted: false });
       }
     }
 
@@ -43,7 +53,7 @@ export const createAsset = async (req, res) => {
       type,
       assetId,
       purchaseDate,
-      status,
+      status: status || "available",
       createdBy: req.user.id,
     });
     res.status(201).json(asset);
@@ -172,7 +182,24 @@ export const updateAsset = async (req, res) => {
     if (asset) {
       asset.name = req.body.name || asset.name;
       asset.type = req.body.type || asset.type;
-      asset.assetId = req.body.assetId || asset.assetId;
+      
+      if (req.body.assetId) {
+        let formattedAssetId = String(req.body.assetId).trim();
+        if (/^\d{1,4}$/.test(formattedAssetId)) {
+          formattedAssetId = formattedAssetId.padStart(4, "0");
+        }
+        if (!/^\d{4}$/.test(formattedAssetId)) {
+          return res
+            .status(400)
+            .json({ message: "Asset ID must be a number up to 4 digits." });
+        }
+        const otherAsset = await Asset.findOne({ assetId: formattedAssetId, _id: { $ne: asset._id }, isDeleted: false });
+        if (otherAsset) {
+          return res.status(400).json({ message: "Asset with this ID already exists" });
+        }
+        asset.assetId = formattedAssetId;
+      }
+
       if (req.body.purchaseDate) {
         const purchaseDateVal = new Date(req.body.purchaseDate);
         const today = new Date();

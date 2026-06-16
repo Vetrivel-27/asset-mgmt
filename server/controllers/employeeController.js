@@ -31,6 +31,10 @@ export const createEmployee = async (req, res) => {
   try {
     const { name, employeeId, department, email, roleId } = req.body;
 
+    if (!roleId) {
+      return res.status(400).json({ message: "Role is required." });
+    }
+
     // Format and validate employee ID
     let formattedEmployeeId = String(employeeId || "").trim();
     if (/^\d{1,4}$/.test(formattedEmployeeId)) {
@@ -53,7 +57,7 @@ export const createEmployee = async (req, res) => {
     // Create User account first
     const employeeRole = roleId
       ? await Role.findById(roleId)
-      : await Role.findOne({ name: "employee" });
+      : await Role.findOne({ name: { $regex: /^employee$/i } });
     if (!employeeRole) {
       return res.status(500).json({ message: "Employee role not found" });
     }
@@ -118,14 +122,10 @@ export const createEmployee = async (req, res) => {
 
 export const getEmployees = async (req, res) => {
   try {
-    const adminRole = await Role.findOne({ name: "admin" });
-    let adminUserIds = [];
-    if (adminRole) {
-      const adminUsers = await User.find({ role: adminRole._id }).select("_id");
-      adminUserIds = adminUsers.map((u) => u._id);
-    }
+    const systemAdmin = await User.findOne({ email: "admin@test.com" });
+    const excludeUserIds = systemAdmin ? [systemAdmin._id] : [];
 
-    const employees = await Employee.find({ userId: { $nin: adminUserIds } }).populate({
+    const employees = await Employee.find({ userId: { $nin: excludeUserIds } }).populate({
       path: "userId",
       select: "userId email role",
       populate: { path: "role", select: "name" },
@@ -206,12 +206,22 @@ export const updateEmployee = async (req, res) => {
     // Update User fields (email, userId, and role live in User now!)
     if (req.body.email || req.body.employeeId || req.body.roleId) {
       const userUpdate = {};
+      let isEmailChanged = false;
+      let newEmail = "";
+      let resetToken = "";
+
       if (req.body.email) {
-        const emailExists = await User.findOne({ email: req.body.email, _id: { $ne: employee.userId }, isDeleted: false });
-        if (emailExists) {
-          return res.status(400).json({ message: "An employee with this email already exists." });
+        const existingUser = await User.findById(employee.userId);
+        const targetEmail = req.body.email.trim().toLowerCase();
+        if (existingUser && existingUser.email !== targetEmail) {
+          const emailExists = await User.findOne({ email: targetEmail, _id: { $ne: employee.userId }, isDeleted: false });
+          if (emailExists) {
+            return res.status(400).json({ message: "An employee with this email already exists." });
+          }
+          userUpdate.email = targetEmail;
+          isEmailChanged = true;
+          newEmail = targetEmail;
         }
-        userUpdate.email = req.body.email;
       }
       if (req.body.employeeId) {
         let formattedEmployeeId = String(req.body.employeeId).trim();
@@ -228,7 +238,39 @@ export const updateEmployee = async (req, res) => {
         userUpdate.userId = formattedEmployeeId;
       }
       if (req.body.roleId) userUpdate.role = req.body.roleId;
+
+      if (isEmailChanged) {
+        resetToken = crypto.randomBytes(20).toString("hex");
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(resetToken)
+          .digest("hex");
+        userUpdate.resetPasswordToken = hashedToken;
+        userUpdate.resetPasswordExpires = Date.now() + 24 * 60 * 60 * 1000;
+      }
+
       await User.findByIdAndUpdate(employee.userId, userUpdate, { runValidators: true });
+
+      if (isEmailChanged && resetToken) {
+        const resetUrl = `http://localhost:3000/forgot-password/${resetToken}`;
+        const message = `
+                <h1>Asset Management System</h1>
+                <p>Hello, ${employee.name || "Employee"}! Your email address has been updated.</p>
+                <p>Please click the link below to set your password for your updated account credentials:</p>
+                <a href="${resetUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update Password</a>
+                <p>This link will expire in 24 hours.</p>
+            `;
+        try {
+          await sendEmail({
+            email: newEmail,
+            subject: "Email Updated - Password Update Required",
+            html: message,
+          });
+          console.log(`Setup/reset email sent to updated email: ${newEmail}`);
+        } catch (e) {
+          console.error("Failed to send email:", e);
+        }
+      }
     }
 
     const updatedEmployee = await employee.save();
@@ -271,6 +313,53 @@ export const deleteEmployee = async (req, res) => {
     await employee.save();
 
     res.json({ message: "Employee and User account removed" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateMyProfile = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ userId: req.user.id });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee profile not found" });
+    }
+
+    // Update Employee fields
+    employee.name = req.body.name || employee.name;
+    employee.department = req.body.department || employee.department;
+    await employee.save();
+
+    // Update User fields
+    const userUpdate = {};
+    if (req.body.email) {
+      const emailExists = await User.findOne({ 
+        email: req.body.email.trim().toLowerCase(), 
+        _id: { $ne: employee.userId }, 
+        isDeleted: false 
+      });
+      if (emailExists) {
+        return res.status(400).json({ message: "An employee with this email already exists." });
+      }
+      userUpdate.email = req.body.email.trim().toLowerCase();
+    }
+
+    if (req.body.password) {
+      const saltRounds = 10;
+      userUpdate.password = await bcrypt.hash(req.body.password, saltRounds);
+    }
+
+    if (Object.keys(userUpdate).length > 0) {
+      await User.findByIdAndUpdate(employee.userId, userUpdate, { runValidators: true });
+    }
+
+    const populated = await Employee.findById(employee._id).populate({
+      path: "userId",
+      select: "userId email role",
+      populate: { path: "role", select: "name" },
+    });
+    res.json(populated);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

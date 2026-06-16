@@ -14,7 +14,7 @@ export const getDashboardStats = async (req, res) => {
         const damagedAssets = await Asset.countDocuments({ status:'damaged'});
         const repairAssets = await Asset.countDocuments({ status:'repair'});
         const unavailableAssets = await Asset.countDocuments({ status: { $in: ['damaged', 'repair'] } });
-        const adminRole = await Role.findOne({ name: 'admin' });
+        const adminRole = await Role.findOne({ name: { $regex: /^admin$/i } });
         let adminUserIds = [];
         if (adminRole) {
             const adminUsers = await User.find({ role: adminRole._id }).select('_id');
