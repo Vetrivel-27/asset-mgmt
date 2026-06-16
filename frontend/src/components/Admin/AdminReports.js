@@ -131,6 +131,10 @@ function AdminReports() {
     return filedReports.filter(r => r.status !== 'resolved').length;
   }, [filedReports]);
 
+  const activeAssignmentsCount = useMemo(() => {
+    return assignments.filter(a => !a.returnedDate).length;
+  }, [assignments]);
+
   const reportsBySelectedType = useMemo(() => {
     return filedReports.filter(r => {
       const rType = r.type?.toLowerCase();
@@ -166,12 +170,39 @@ function AdminReports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-900">Reports</h2>
           <p className="text-sm text-slate-500">
             Overview: recent assignments, damaged items, availability.
           </p>
+        </div>
+
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 w-full lg:w-auto">
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Total Assets
+            </p>
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-orange-400">
+              {assets.length}
+            </p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Total Active Assignments
+            </p>
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-500">
+              {activeAssignmentsCount}
+            </p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 shadow-sm">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Damaged Assets
+            </p>
+            <p className="mt-2 text-2xl sm:text-3xl font-bold text-yellow-500">
+              {damagedAssets.length}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -314,7 +345,6 @@ function AdminReports() {
                       {a.type || "—"}
                     </div>
                   </div>
-                  <div className="text-xs text-green-600">Available</div>
                 </div>
               ))}
               {availableAssets.length > 4 && (
@@ -332,51 +362,6 @@ function AdminReports() {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2 mt-6">
-        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">
-            Quick Insights
-          </h3>
-          <ul className="mt-4 space-y-2 text-sm text-slate-600">
-            <li>
-              Total assets:{" "}
-              <span className="font-medium text-slate-900">
-                {assets.length}
-              </span>
-            </li>
-            <li>
-              Total assignments:{" "}
-              <span className="font-medium text-slate-900">
-                {assignments.length}
-              </span>
-            </li>
-            <li>
-              Damaged:{" "}
-              <span className="font-medium text-red-600">
-                {damagedAssets.length}
-              </span>
-            </li>
-            <li>
-              Available:{" "}
-              <span className="font-medium text-green-600">
-                {availableAssets.length}
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        {/* <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Actions</h3>
-          <div className="mt-4 flex flex-col gap-3">
-            <button className="w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-slate-900">
-              Create export
-            </button>
-            <button className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">
-              View full report
-            </button>
-          </div>
-        </div> */}
-      </div>
 
       {/* Modal for All Reports */}
       {showAllReportsModal && createPortal(

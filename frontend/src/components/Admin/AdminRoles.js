@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../../config";
 
 const getAuthHeaders = () => {
@@ -32,6 +33,21 @@ function AdminRoles() {
   const [editingRoleId, setEditingRoleId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (deleteModalOpen) {
+          setDeleteModalOpen(false);
+          setRoleToDelete(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteModalOpen]);
 
   const permissionGroups = useMemo(() => {
     return permissions.reduce((groups, permission) => {
@@ -135,6 +151,69 @@ function AdminRoles() {
     });
   };
 
+  const toggleGroupPermissions = (groupPermissions, shouldSelect) => {
+    setSelectedPermissions((current) => {
+      let result = [...current];
+
+      if (shouldSelect) {
+        // SELECTING ALL in group: add all and their dependencies recursively
+        const toAdd = new Set();
+
+        const collectDeps = (permName) => {
+          const deps = PERMISSION_DEPENDENCIES[permName] || [];
+          deps.forEach((depName) => {
+            const depPerm = permissions.find((p) => p.name === depName);
+            if (depPerm && !toAdd.has(depPerm._id) && !result.includes(depPerm._id)) {
+              toAdd.add(depPerm._id);
+              collectDeps(depName);
+            }
+          });
+        };
+
+        groupPermissions.forEach((permission) => {
+          if (!result.includes(permission._id)) {
+            toAdd.add(permission._id);
+            collectDeps(permission.name);
+          }
+        });
+
+        toAdd.forEach((id) => {
+          if (!result.includes(id)) {
+            result.push(id);
+          }
+        });
+      } else {
+        // DESELECTING ALL in group: remove all and their dependents recursively
+        const toRemove = new Set();
+
+        const collectDependents = (permName) => {
+          Object.entries(PERMISSION_DEPENDENCIES).forEach(([parentName, deps]) => {
+            if (deps.includes(permName)) {
+              const parentPerm = permissions.find((p) => p.name === parentName);
+              if (parentPerm && !toRemove.has(parentPerm._id)) {
+                if (result.includes(parentPerm._id)) {
+                  toRemove.add(parentPerm._id);
+                  collectDependents(parentName);
+                }
+              }
+            }
+          });
+        };
+
+        groupPermissions.forEach((permission) => {
+          if (result.includes(permission._id)) {
+            toRemove.add(permission._id);
+            collectDependents(permission.name);
+          }
+        });
+
+        result = result.filter((id) => !toRemove.has(id));
+      }
+
+      return result;
+    });
+  };
+
   const handleEditInit = (role) => {
     setEditingRoleId(role._id);
     setRoleName(role.name);
@@ -151,13 +230,13 @@ function AdminRoles() {
     setMessage("");
   };
 
-  const handleDelete = async (role) => {
-    if (!window.confirm(`Are you sure you want to delete the role "${role.name}"?`)) return;
+  const confirmDelete = async () => {
+    if (!roleToDelete) return;
     
     setError("");
     setMessage("");
     try {
-      const res = await fetch(`${API_URL}/api/roles/${role._id}`, {
+      const res = await fetch(`${API_URL}/api/roles/${roleToDelete._id}`, {
         method: "DELETE",
         headers: getAuthHeaders()
       });
@@ -165,11 +244,15 @@ function AdminRoles() {
       
       if (!res.ok) throw new Error(data.message || "Failed to delete role.");
       
-      setRoles(current => current.filter(r => r._id !== role._id));
-      setMessage(`Role deleted successfully.`);
-      if (editingRoleId === role._id) handleCancelEdit();
+      setRoles(current => current.filter(r => r._id !== roleToDelete._id));
+      setMessage(`Role "${roleToDelete.name}" deleted successfully.`);
+      if (editingRoleId === roleToDelete._id) handleCancelEdit();
+      setDeleteModalOpen(false);
+      setRoleToDelete(null);
     } catch (err) {
       setError(err.message || "Failed to delete role.");
+      setDeleteModalOpen(false);
+      setRoleToDelete(null);
     }
   };
 
@@ -273,8 +356,11 @@ function AdminRoles() {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleDelete(role)}
+                           <button
+                            onClick={() => {
+                              setRoleToDelete(role);
+                              setDeleteModalOpen(true);
+                            }}
                             className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md"
                           >
                             Delete
@@ -323,8 +409,25 @@ function AdminRoles() {
                   key={group}
                   className="rounded-2xl border border-slate-200 p-4"
                 >
-                  <legend className="px-1 text-sm font-semibold text-slate-800">
-                    {group}
+                  <legend className="px-1.5 text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={groupPermissions.every(p => selectedPermissions.includes(p._id))}
+                      ref={(el) => {
+                        if (el) {
+                          const allSelected = groupPermissions.every(p => selectedPermissions.includes(p._id));
+                          const someSelected = groupPermissions.some(p => selectedPermissions.includes(p._id));
+                          el.indeterminate = someSelected && !allSelected;
+                        }
+                      }}
+                      onChange={() => {
+                        const allSelected = groupPermissions.every(p => selectedPermissions.includes(p._id));
+                        toggleGroupPermissions(groupPermissions, !allSelected);
+                      }}
+                      disabled={submitting}
+                      className="h-4 w-4 rounded border-slate-300 text-yellow-400 focus:ring-yellow-300"
+                    />
+                    <span>{group}</span>
                   </legend>
                   <div className="mt-3 space-y-2">
                     {groupPermissions.map((permission) => (
@@ -369,6 +472,109 @@ function AdminRoles() {
           </form>
         </section>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen &&
+        roleToDelete &&
+        createPortal(
+          <div
+            onClick={() => {
+              setDeleteModalOpen(false);
+              setRoleToDelete(null);
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-yellow-400 animate-fade-in"
+            >
+              {/* Header */}
+              <div className="bg-yellow-400 px-6 py-5 flex items-center justify-between text-black">
+                <div>
+                  <h3 className="font-bold text-lg">Delete Role</h3>
+                  <p className="text-xs font-bold text-black mt-0.5">
+                    This action cannot be undone
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setRoleToDelete(null);
+                  }}
+                  className="text-black hover:text-white rounded-full p-1 transition"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-3 text-red-500">
+                  <svg
+                    className="w-10 h-10 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Are you sure you want to permanently delete this role?
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-1 text-sm text-slate-700">
+                  <div>
+                    <span className="font-semibold text-slate-500">
+                      Role Name:{" "}
+                    </span>
+                    <span className="font-bold text-slate-800 capitalize">
+                      {roleToDelete.name}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-black transition hover:bg-yellow-500 shadow-sm"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteModalOpen(false);
+                      setRoleToDelete(null);
+                    }}
+                    className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -458,17 +458,27 @@ function EmployeeHistory() {
                     <div className="relative border-l border-slate-200 pl-5 ml-2 space-y-6">
                       <div className="relative">
                         <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
-                        <p className="text-xs font-bold text-slate-800">Report Submitted</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-xs font-bold text-slate-800">Report Submitted</p>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {new Date(selectedRecord.createdAt).toLocaleString()}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Submitted by you on {new Date(selectedRecord.createdAt).toLocaleString()}.
+                          Submitted by you.
                         </p>
                       </div>
 
                       {(selectedRecord.status === 'in_progress' || selectedRecord.status === 'resolved') && (
                         <div className="relative">
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white"></span>
-                          <p className="text-xs font-bold text-blue-700">Maintenance In Progress</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-xs font-bold text-blue-700">Maintenance In Progress</p>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {selectedRecord.status === 'in_progress' ? new Date(selectedRecord.updatedAt).toLocaleString() : '—'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
                             Report is being reviewed and the asset is undergoing maintenance.
                           </p>
                         </div>
@@ -477,8 +487,13 @@ function EmployeeHistory() {
                       {selectedRecord.status === 'resolved' && (
                         <div className="relative">
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
-                          <p className="text-xs font-bold text-emerald-700">Report Resolved</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-xs font-bold text-emerald-700">Report Resolved</p>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(selectedRecord.updatedAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
                             Issue resolved. The asset has been set back to available.
                           </p>
                         </div>
@@ -489,23 +504,46 @@ function EmployeeHistory() {
               ) : (
                 <>
                   <div className="space-y-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Approval Details</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      {selectedRecord.recordType === 'rejected_request' ? "Rejection Details" : "Approval Details"}
+                    </p>
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-100 text-yellow-700 text-sm font-bold">
-                          {(selectedRecord.createdBy?.displayName || "Admin").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                          {(() => {
+                            const isRejected = selectedRecord.recordType === 'rejected_request';
+                            const actionUser = isRejected ? selectedRecord.statusChangedBy : selectedRecord.createdBy;
+                            const actionEmployee = isRejected ? selectedRecord.statusChangedEmployee : selectedRecord.assignerEmployee;
+                            const actorName = actionEmployee?.name || actionUser?.displayName || (actionUser?.email ? actionUser.email.split('@')[0] : "Admin");
+                            return actorName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                          })()}
                         </div>
                         <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approved By</p>
-                          <p className="text-sm font-bold text-slate-800">{selectedRecord.createdBy?.displayName || "System Admin"}</p>
+                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                            {selectedRecord.recordType === 'rejected_request' ? "Rejected By" : "Approved By"}
+                          </p>
+                          <p className="text-sm font-bold text-slate-800">
+                            {(() => {
+                              const isRejected = selectedRecord.recordType === 'rejected_request';
+                              const actionUser = isRejected ? selectedRecord.statusChangedBy : selectedRecord.createdBy;
+                              const actionEmployee = isRejected ? selectedRecord.statusChangedEmployee : selectedRecord.assignerEmployee;
+                              return actionEmployee?.name || actionUser?.displayName || (actionUser?.email ? actionUser.email.split('@')[0] : "System Admin");
+                            })()}
+                          </p>
                         </div>
                       </div>
-                      {selectedRecord.createdBy?.email && (
-                        <div className="pt-2 border-t border-slate-100">
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approver Email</p>
-                          <p className="text-xs font-semibold text-slate-700 break-all">{selectedRecord.createdBy?.email}</p>
-                        </div>
-                      )}
+                      {(() => {
+                        const isRejected = selectedRecord.recordType === 'rejected_request';
+                        const actionUser = isRejected ? selectedRecord.statusChangedBy : selectedRecord.createdBy;
+                        return actionUser?.email ? (
+                          <div className="pt-2 border-t border-slate-100">
+                            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                              {isRejected ? "Rejecter Email" : "Approver Email"}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-700 break-all">{actionUser.email}</p>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 
@@ -514,27 +552,42 @@ function EmployeeHistory() {
                     <div className="relative border-l border-slate-200 pl-5 ml-2 space-y-6">
                       <div className="relative">
                         <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-slate-400 ring-4 ring-white"></span>
-                        <p className="text-xs font-bold text-slate-800">Borrow Request Submitted</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <p className="text-xs font-bold text-slate-800">Borrow Request Submitted</p>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {new Date(selectedRecord.createdAt || selectedRecord.assignedDate).toLocaleString()}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Submitted by you for approval on {new Date(selectedRecord.createdAt || selectedRecord.assignedDate).toLocaleDateString()}.
+                          Submitted by you for approval.
                         </p>
                       </div>
 
                       {selectedRecord.recordType === 'rejected_request' ? (
                         <div className="relative">
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-4 ring-white"></span>
-                          <p className="text-xs font-bold text-red-700">Request Rejected</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            This request was rejected. The asset may no longer be available.
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-xs font-bold text-red-700">Request Rejected</p>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(selectedRecord.updatedAt || selectedRecord.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Rejected by <span className="font-semibold text-slate-700">{selectedRecord.statusChangedEmployee?.name || selectedRecord.statusChangedBy?.displayName || (selectedRecord.statusChangedBy?.email ? selectedRecord.statusChangedBy.email.split('@')[0] : "System Admin")}</span>.
                           </p>
                         </div>
                       ) : (
                         <div className="relative">
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-white"></span>
-                          <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Approved by <span className="font-semibold text-slate-700">{selectedRecord.createdBy?.displayName || "System Admin"}</span> on{" "}
-                            {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}.
+
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-xs font-bold text-emerald-700">Request Approved & Assigned</p>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {selectedRecord.assignedDate ? new Date(selectedRecord.assignedDate).toLocaleString() : "—"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Approved by <span className="font-semibold text-slate-700">{selectedRecord.assignerEmployee?.name || selectedRecord.createdBy?.displayName || (selectedRecord.createdBy?.email ? selectedRecord.createdBy.email.split('@')[0] : "System Admin")}</span>.
                           </p>
                           {selectedRecord.tentativeReturnDate && (
                             <p className="text-[11px] font-semibold text-amber-600 mt-1">
@@ -547,10 +600,14 @@ function EmployeeHistory() {
                       {selectedRecord.returnedDate && (
                         <div className="relative">
                           <span className="absolute -left-[25px] top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-white"></span>
-                          <p className="text-xs font-bold text-blue-700">Asset Returned</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Returned and checked back in on{" "}
-                            {new Date(selectedRecord.returnedDate).toLocaleString()}.
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="text-xs font-bold text-blue-700">Asset Returned</p>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(selectedRecord.returnedDate).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Returned and checked back in.
                           </p>
                         </div>
                       )}

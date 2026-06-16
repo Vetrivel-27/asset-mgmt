@@ -69,40 +69,39 @@ function SidebarIcon({ name, className = "h-5 w-5" }) {
 
 const SIDEBAR_W = 272;
 
-const ADMIN_NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { to: "/dashboard", end: true, label: "Dashboard", permission: "view_dashboard", icon: "dashboard" },
   { to: "/dashboard/assets", label: "Assets", permission: "manage_asset", icon: "assets" },
-  { to: "/dashboard/employees", label: "Employees", permission: "view_users", icon: "employees" },
-  { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow", icon: "requests" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
-  { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"], icon: "reports" },
-  { to: "/dashboard/roles", label: "Roles", permission: "manage_roles", icon: "roles" },
-];
-
-const EMPLOYEE_NAV_ITEMS = [
   { to: "/dashboard/my-assets", label: "Assets", permission: "view_asset", employeeOnly: true, icon: "assets" },
+  { to: "/dashboard/employees", label: "Users", permission: "view_users", icon: "employees" },
+  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
   { to: "/dashboard/status", label: "Status", permission: "return_asset", employeeOnly: true, icon: "status" },
   { to: "/dashboard/requests", label: "Requests", permission: "approve_borrow", icon: "requests" },
-  { to: "/dashboard/assignments", label: "Assignments", permission: "view_assignments", icon: "assignments" },
-  { to: "/dashboard/report", label: "Report Damage", permission: "report_damage", employeeOnly: true, icon: "damage" },
   { to: "/dashboard/reports", label: "Reports", permission: ["view_report", "manage_maintenance"], icon: "reports" },
-  { to: "/dashboard/history", label: "History", permission: "view_asset", employeeOnly: true, icon: "history" },
-  
-  // Fallbacks if a non-admin role is granted other admin-level permissions
-  { to: "/dashboard", end: true, label: "Dashboard", permission: "view_dashboard", icon: "dashboard" },
-  { to: "/dashboard/employees", label: "Employees", permission: "view_users", icon: "employees" },
+  { to: "/dashboard/report", label: "Report Damage", permission: "report_damage", employeeOnly: true, icon: "damage" },
   { to: "/dashboard/roles", label: "Roles", permission: "manage_roles", icon: "roles" },
+  { to: "/dashboard/history", label: "History", permission: "view_asset", employeeOnly: true, icon: "history" },
 ];
+
 
 function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [profile, setProfile] = useState({
     name: sessionStorage.getItem("userName") || "User",
     role: sessionStorage.getItem("userRole") || "",
+  });
+  const [permissions, setPermissions] = useState(() => {
+    try {
+      const p = sessionStorage.getItem("userPermissions");
+      return p ? JSON.parse(p) : [];
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -119,7 +118,13 @@ function DashboardLayout() {
         if (mounted && res.ok) {
           const name = data.name || data.userId?.displayName || data.userId?.email || "User";
           const role = data.userId?.role?.name || sessionStorage.getItem("userRole") || "";
+          const permissionNames = data.userId?.role?.permissions?.map(p => p.name) || [];
+
           setProfile({ name, role });
+          if (permissionNames.length > 0) {
+            setPermissions(permissionNames);
+            sessionStorage.setItem("userPermissions", JSON.stringify(permissionNames));
+          }
           sessionStorage.setItem("userName", name);
           sessionStorage.setItem("userRole", role.toLowerCase());
         }
@@ -170,11 +175,14 @@ function DashboardLayout() {
 
   // Dynamically filter nav items based on permissions
   const navItems = useMemo(() => {
-    const sourceArray = adminUser ? ADMIN_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
-
-    const filtered = sourceArray.filter((item) => {
-      // Hide employee-specific items from admin
+    const filtered = ALL_NAV_ITEMS.filter((item) => {
+      // Hide employee-specific items from core admin
       if (adminUser && item.employeeOnly) return false;
+
+      // Hide employee Assets tab if they have manage_asset permission (to avoid duplicates)
+      if (item.to === "/dashboard/my-assets" && canAccess("manage_asset")) {
+        return false;
+      }
 
       // Normal permission check
       if (Array.isArray(item.permission)) {
@@ -191,7 +199,8 @@ function DashboardLayout() {
     }
 
     return filtered;
-  }, [adminUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminUser, permissions]);
 
   // If user hits the base `/dashboard` but doesn't have `view_dashboard`, redirect them
   useEffect(() => {
@@ -274,13 +283,24 @@ function DashboardLayout() {
               ))}
             </nav>
 
+            {/* Profile */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 flex items-center justify-center gap-2"
+            >
+              <svg className="h-5 w-5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Profile</span>
+            </button>
+
             {/* Logout */}
             <button
               onClick={() => {
                 sessionStorage.clear();
                 navigate("/login", { replace: true });
               }}
-              className="mt-4 w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500"
+              className="mt-2 w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500"
             >
               Logout
             </button>
@@ -300,14 +320,21 @@ function DashboardLayout() {
               <HamburgerIcon open={open} />
             </button>
 
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-black">
-                {adminUser ? "Admin Panel" : "Employee Portal"}
-              </p>
-              <h1 className="text-lg font-semibold leading-tight text-slate-900">
-                {profile.name}
-              </h1>
+            <div className="flex-1 flex items-center">
+              <img 
+                src="/ESAB.png" 
+                alt="ESAB Logo" 
+                className="h-9 w-auto object-contain select-none filter drop-shadow-sm" 
+              />
             </div>
+
+            {/* User Role Tile */}
+            {profile.role && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-white/20 bg-white/20 backdrop-blur-md text-xs font-semibold text-slate-800 capitalize shrink-0 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
+                <span>{profile.role}</span>
+              </div>
+            )}
 
             {/* Avatar pill with dropdown */}
             <div className="relative min-w-[140px]">
@@ -365,6 +392,260 @@ function DashboardLayout() {
             <Outlet />
           </main>
         </div>
+      </div>
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onUpdate={(newProfile) => {
+          setProfile(newProfile);
+          sessionStorage.setItem("userName", newProfile.name);
+        }}
+      />
+    </div>
+  );
+}
+
+function ProfileModal({ isOpen, onClose, onUpdate }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setError("");
+    setSuccess("");
+    setPassword("");
+    setConfirmPassword("");
+    
+    const token = sessionStorage.getItem("authToken");
+    fetch(`${API_URL}/api/employees/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setName(data.name || data.userId?.displayName || "");
+        setDepartment(data.department || "");
+        setEmployeeId(data.employeeId || "");
+        if (data.userId) {
+          setEmail(data.userId.email || "");
+          setRole(data.userId.role?.name || "");
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load profile details.");
+      });
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleEsc);
+    }
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    
+    if (password && password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem("authToken");
+      const body = { name, email, department };
+      if (password) body.password = password;
+
+      const res = await fetch(`${API_URL}/api/employees/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update profile.");
+      }
+
+      setSuccess("Profile updated successfully!");
+      onUpdate({
+        name: data.name || data.userId?.displayName || "User",
+        role: data.userId?.role?.name || "",
+      });
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
+      <div 
+        className="w-full max-w-md rounded-[32px] bg-white shadow-2xl border border-slate-100 overflow-hidden"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <h3 className="text-lg font-bold text-slate-900">User Profile</h3>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          {error && (
+            <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-xs text-red-600">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-xs text-green-600">
+              {success}
+            </div>
+          )}
+
+          {/* Employee ID & Role (Read-only) */}
+          <div className={`grid gap-3 ${employeeId ? "grid-cols-2" : "grid-cols-1"}`}>
+            {employeeId && (
+              <div>
+                <label className="text-xs font-semibold text-slate-500">Employee ID</label>
+                <div className="mt-1.5 w-full rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 border border-slate-200">
+                  {employeeId}
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-semibold text-slate-500">Role</label>
+              <div className="mt-1.5 w-full rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 capitalize border border-slate-200">
+                {role || "—"}
+              </div>
+            </div>
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Full Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+              className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Email Address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+            />
+          </div>
+
+          {/* Department */}
+          <div>
+            <label className="text-xs font-semibold text-slate-500">Department</label>
+            <input
+              type="text"
+              required
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              disabled={loading}
+              className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+            />
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Change Password (Optional)</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-500">New Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  placeholder="Min 6 characters"
+                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={loading}
+                  placeholder="Repeat new password"
+                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex gap-3 pt-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 rounded-2xl bg-yellow-400 py-3 text-sm font-bold text-slate-900 transition hover:bg-yellow-500 shadow-sm disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

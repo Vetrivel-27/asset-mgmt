@@ -114,7 +114,7 @@ function AdminEmployees() {
         );
       }
     } catch (error) {
-      console.error("Failed to load employees", error);
+      console.error("Failed to load users", error);
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,8 @@ function AdminEmployees() {
       return (
         employee.name?.toLowerCase().includes(term) ||
         employee.email?.toLowerCase().includes(term) ||
-        employee.employeeId?.toLowerCase().includes(term)
+        employee.employeeId?.toLowerCase().includes(term) ||
+        employee.roleName?.toLowerCase().includes(term)
       );
     });
   }, [employees, filter]);
@@ -365,9 +366,9 @@ function AdminEmployees() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-slate-900">Employees</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">Users</h2>
           <p className="text-sm text-slate-500">
-            Manage employee profiles and assignments.
+            Manage user profiles and assignments.
           </p>
         </div>
         <CanAccess permission="manage_users">
@@ -390,7 +391,7 @@ function AdminEmployees() {
               }}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900"
             >
-              {showForm ? "Cancel" : "New Employee"}
+              {showForm ? "Cancel" : "New User"}
             </button>
           </div>
         </CanAccess>
@@ -414,10 +415,10 @@ function AdminEmployees() {
       {showForm && (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-900">
-            Add New Employee
+            Add New User
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Enter employee details. A welcome email with account setup link will
+            Enter user details. A welcome email with account setup link will
             be sent automatically.
           </p>
 
@@ -433,7 +434,7 @@ function AdminEmployees() {
               <input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="Employee full name"
+                placeholder="User full name"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
               />
@@ -444,7 +445,7 @@ function AdminEmployees() {
                 type="email"
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="employee@example.com"
+                placeholder="user@example.com"
                 disabled={submitting}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
               />
@@ -510,7 +511,7 @@ function AdminEmployees() {
                 disabled={submitting}
                 className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
               >
-                {submitting ? "Creating..." : "Add employee"}
+                {submitting ? "Creating..." : "Add user"}
               </button>
               <button
                 type="button"
@@ -537,7 +538,7 @@ function AdminEmployees() {
               setFilter(e.target.value);
               setPage(1);
             }}
-            placeholder="Search employees by name, email or ID"
+            placeholder="Search users by name, email, ID or role"
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 md:max-w-md"
           />
           <div className="flex items-center gap-2">
@@ -574,11 +575,11 @@ function AdminEmployees() {
         <div className="mt-6">
           {loading ? (
             <div className="rounded-3xl bg-white p-8 shadow text-center text-slate-500">
-              Loading employees...
+              Loading Users...
             </div>
           ) : pageItems.length === 0 ? (
             <div className="rounded-3xl bg-white p-8 shadow text-center text-slate-500">
-              No employees found.
+              No Users found.
             </div>
           ) : viewMode === "grid" ? (
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -625,31 +626,26 @@ function AdminEmployees() {
                   <div className="mt-3 min-w-0 text-center">
                     <div
                       className="text-sm font-semibold text-slate-900 truncate"
-                      title={employee.name || ""}
                     >
                       {employee.name || "—"}
                     </div>
                     <div
                       className="text-xs text-slate-500 truncate"
-                      title={employee.department || ""}
                     >
                       {employee.department || "—"}
                     </div>
                     <div
                       className="text-xs capitalize text-slate-500 truncate"
-                      title={employee.roleName || ""}
                     >
                       {employee.roleName || "—"}
                     </div>
                     <div
                       className="text-xs text-slate-400 mt-1 truncate"
-                      title={employee.employeeId || ""}
                     >
                       ID: {employee.employeeId || "—"}
                     </div>
                     <div
                       className="text-xs text-slate-400 mt-1 truncate"
-                      title={employee.email || ""}
                     >
                       {employee.email || "—"}
                     </div>
@@ -730,7 +726,7 @@ function AdminEmployees() {
             page={page} pageCount={pageCount} setPage={setPage}
             canPrev={canPrev} canNext={canNext} prev={prev} next={next}
             showing={pageItems.length} total={filteredEmployees.length}
-            label="employees"
+            label="user"
           />
         )}
       </div>
@@ -796,7 +792,7 @@ function AdminEmployees() {
                     required
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Employee full name"
+                    placeholder="User full name"
                     disabled={submitting}
                     className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
                   />
@@ -818,7 +814,7 @@ function AdminEmployees() {
                       required
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
-                      placeholder="employee@example.com"
+                      placeholder="user@example.com"
                       disabled={submitting}
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100 disabled:opacity-50"
                     />

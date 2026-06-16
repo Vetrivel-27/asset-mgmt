@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { API_URL } from "../../config";
 import { createPortal } from "react-dom";
 import { canAccess } from "../../permissions";
 import AdminAssets from "../Admin/AdminAssets";
+import Pagination from "../Pagination";
+import { usePagination } from "../../hooks/usePagination";
 
 // --- Dynamic Asset Thumbnail Finder ---
 const getThumbnail = (type) => {
@@ -154,10 +156,7 @@ function EmployeeAssets() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(6);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Borrow Dialog Modal State
@@ -175,7 +174,6 @@ function EmployeeAssets() {
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       setSearch(searchQuery);
-      setPage(1);
     }, 450);
 
     return () => clearTimeout(delayDebounceFn);
@@ -201,35 +199,20 @@ function EmployeeAssets() {
     loadTypes();
   }, []);
 
-  // Fetch Assets based on status, type, search, page and limit
+  // Fetch all Assets from server
   const fetchAssets = useCallback(async () => {
     setLoading(true);
     try {
       const token = sessionStorage.getItem("authToken");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const params = new URLSearchParams();
-      if (statusFilter) params.append("status", statusFilter);
-      if (typeFilter) params.append("type", typeFilter);
-      if (search) params.append("search", search);
-      params.append("page", page);
-      params.append("limit", limit);
-
-      const res = await fetch(`${API_URL}/api/assets?${params.toString()}`, {
+      const res = await fetch(`${API_URL}/api/assets`, {
         headers,
       });
       const data = await res.json();
 
       if (res.ok) {
-        if (data.assets && Array.isArray(data.assets)) {
-          setAssets(data.assets);
-          setTotalPages(data.pagination?.pages || 1);
-          setTotalCount(data.pagination?.total || 0);
-        } else if (Array.isArray(data)) {
-          setAssets(data);
-          setTotalPages(1);
-          setTotalCount(data.length);
-        }
+        setAssets(Array.isArray(data) ? data : (data.assets || []));
       } else {
         throw new Error(data.message || "Failed to fetch assets");
       }
@@ -240,7 +223,29 @@ function EmployeeAssets() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, typeFilter, search, page, limit]);
+  }, []);
+
+  const filteredAssets = useMemo(() => {
+    const term = search.toLowerCase();
+    return assets.filter((asset) => {
+      const textMatches =
+        asset.name?.toLowerCase().includes(term) ||
+        asset.assetId?.toLowerCase().includes(term);
+
+      const statusMatches =
+        statusFilter === "" ? true : asset.status?.toLowerCase() === statusFilter.toLowerCase();
+
+      const typeMatches =
+        typeFilter === "" ? true : asset.type?.toLowerCase() === typeFilter.toLowerCase();
+
+      return textMatches && statusMatches && typeMatches;
+    });
+  }, [assets, search, statusFilter, typeFilter]);
+
+  const {
+    page, pageCount, pageItems: currentPageAssets, setPage,
+    canPrev, canNext, prev, next,
+  } = usePagination({ data: filteredAssets, pageSize: limit, resetDeps: [search, statusFilter, typeFilter, limit] });
 
   useEffect(() => {
     fetchAssets();
@@ -459,7 +464,7 @@ function EmployeeAssets() {
               Loading inventory items...
             </p>
           </div>
-        ) : assets.length === 0 ? (
+        ) : filteredAssets.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-16 text-center text-slate-400">
             <svg
               className="mx-auto h-12 w-12 text-slate-300 mb-4"
@@ -483,7 +488,7 @@ function EmployeeAssets() {
           </div>
         ) : (
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {assets.map((asset) => {
+            {currentPageAssets.map((asset) => {
               const isAssigned = asset.status?.toLowerCase() === "assigned";
               const isMaintenance =
                 asset.status?.toLowerCase() === "damaged" ||
@@ -571,50 +576,19 @@ function EmployeeAssets() {
         )}
       </div>
 
-      {/* Pagination Controls */}
-      {!loading && totalPages > 1 && (
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
-            Showing page{" "}
-            <span className="font-bold text-slate-800">{page}</span> of{" "}
-            <span className="font-bold text-slate-800">{totalPages}</span> (
-            {totalCount} total assets)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <div className="flex gap-1.5">
-              {Array.from({ length: totalPages }, (_, index) => {
-                const p = index + 1;
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    className={`h-9 w-9 rounded-xl text-sm font-bold transition ${
-                      page === p
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+      {!loading && (
+        <Pagination
+          page={page}
+          pageCount={pageCount}
+          setPage={setPage}
+          canPrev={canPrev}
+          canNext={canNext}
+          prev={prev}
+          next={next}
+          showing={currentPageAssets.length}
+          total={filteredAssets.length}
+          label="assets"
+        />
       )}
 
       {/* Borrow Confirmation Modal */}

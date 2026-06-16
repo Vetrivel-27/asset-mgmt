@@ -226,7 +226,7 @@ function EmployeeStatus() {
                       <div className="mt-5 space-y-2">
                         <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
                           <span className="flex items-center gap-1.5 text-slate-500">
-                            <CalendarIcon /> Assigned
+                            <CalendarIcon /> Assigned 
                           </span>
                           <span className="font-medium text-slate-800">
                             {assignment.assignedDate
@@ -346,8 +346,8 @@ function EmployeeStatus() {
                   <thead className="bg-slate-50">
                     <tr>
                       <SortableHeader label="Asset" sortKey="assetId.name" currentSort={sortConfig} requestSort={requestSort} className="w-1/3" />
-                      <SortableHeader label="Assigned" sortKey="assignedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/3" />
-                      <SortableHeader label="Returned" sortKey="returnedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/3" />
+                      <SortableHeader label="Assigned on" sortKey="assignedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/3" />
+                      <SortableHeader label="Returned on" sortKey="returnedDate" currentSort={sortConfig} requestSort={requestSort} className="w-1/3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
