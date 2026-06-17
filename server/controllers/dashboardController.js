@@ -1,6 +1,9 @@
 import Asset from '../models/Asset.js';
 import Employee from '../models/Employee.js';
 import AssetReport from '../models/AssetReport.js';
+import User from '../models/User.js';
+import Role from '../models/Role.js';
+
 
 export const getDashboardStats = async (req, res) => {
     try {
@@ -8,16 +11,27 @@ export const getDashboardStats = async (req, res) => {
         const totalAssets = await Asset.countDocuments();
         const availableAssets = await Asset.countDocuments({status: 'available' });
         const assignedAssets = await Asset.countDocuments({ status:'assigned'});    
-        const maintenanceAssets = await Asset.countDocuments({ status:'maintenance'});
-        //Other counts
-        const totalEmployees = await Employee.countDocuments();
+        const damagedAssets = await Asset.countDocuments({ status:'damaged'});
+        const repairAssets = await Asset.countDocuments({ status:'repair'});
+        const unavailableAssets = await Asset.countDocuments({ status: { $in: ['damaged', 'repair'] } });
+        const adminRole = await Role.findOne({ name: { $regex: /^admin$/i } });
+        let adminUserIds = [];
+        if (adminRole) {
+            const adminUsers = await User.find({ role: adminRole._id }).select('_id');
+            adminUserIds = adminUsers.map(u => u._id);
+        }
+        
+        const totalEmployees = await Employee.countDocuments({ userId: { $nin: adminUserIds } });
         const openDamageReports = await AssetReport.countDocuments({ type:'damage', status:'open' });
 
         res.status(200).json({
-            assets: {total: totalAssets,
+            assets: {
+                total: totalAssets,
                 available: availableAssets,
                 assigned: assignedAssets,
-                maintenance: maintenanceAssets
+                unavailable: unavailableAssets,
+                damaged: damagedAssets,
+                repair: repairAssets
             },
             employees: {total: totalEmployees},
             reports: {openDamage: openDamageReports}

@@ -54,3 +54,69 @@ export const createRole = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+export const updateRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, permissions } = req.body;
+        
+        const role = await Role.findById(id);
+        if (!role) {
+            return res.status(404).json({ message: "Role not found" });
+        }
+        
+        const roleNameLower = role.name?.toLowerCase();
+        if (roleNameLower === 'admin') {
+            return res.status(403).json({ message: "Cannot edit default core roles" });
+        }
+
+        const roleName = name?.trim().toLowerCase();
+        if (!roleName || !Array.isArray(permissions) || permissions.length === 0) {
+            return res.status(400).json({ message: "Role name and permissions are required" });
+        }
+
+        // Check name clash
+        if (roleName !== role.name) {
+            const exists = await Role.findOne({ name: roleName });
+            if (exists) return res.status(400).json({ message: "Role name already in use" });
+        }
+
+        role.name = roleName;
+        role.permissions = permissions;
+        await role.save();
+
+        const populatedRole = await Role.findById(role._id).populate('permissions', 'name group');
+        res.json(populatedRole);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const deleteRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const role = await Role.findById(id);
+        
+        if (!role) {
+            return res.status(404).json({ message: "Role not found" });
+        }
+
+        const roleNameLower = role.name?.toLowerCase();
+        if (roleNameLower === 'admin') {
+            return res.status(403).json({ message: "Cannot delete core roles" });
+        }
+
+        // check if users are assigned
+        const usersCount = await User.countDocuments({ role: id });
+        if (usersCount > 0) {
+            return res.status(400).json({ message: "Cannot delete role because it is assigned to existing employees." });
+        }
+
+        await Role.findByIdAndDelete(id);
+        res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};

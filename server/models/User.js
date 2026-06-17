@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
+import softDeletePlugin from '../plugins/softDelete.js';
 const userSchema = new mongoose.Schema({
-    userId: { type: String, required: true, trim: true },
+    displayName: { type: String, default: "" },
     email: { type: String, required: true, lowercase: true },
     password: { type: String, required: true },
     role: { type: mongoose.Schema.Types.ObjectId, ref:'Role', required: true},
@@ -8,23 +9,24 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpires: Date,
     resetPasswordOtp: String,
     resetPasswordOtpExpires: Date,
-    isDeleted: {type: Boolean, default: false},
-    deletedAt: {type: Date, default: null},
-    deletedBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null}
-}, { timestamps: true });
+    refreshToken: { type: String, default: null }
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
 
-userSchema.index({ userId: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
+userSchema.virtual('employeeProfile', {
+    ref: 'Employee',
+    localField: '_id',
+    foreignField: 'userId',
+    justOne: true
+});
+
+userSchema.plugin(softDeletePlugin);
+
 userSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
 
-userSchema.pre(/^find/, function() {
-    if (this.getQuery().isDeleted === undefined) {
-        this.where({ isDeleted: false });
-    }
-});
-userSchema.pre('countDocuments', function() {
-    if (this.getQuery().isDeleted === undefined) {
-        this.where({ isDeleted: false });
-    }
-});
+
 
 export default mongoose.model('User', userSchema);

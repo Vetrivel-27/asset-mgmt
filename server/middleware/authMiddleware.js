@@ -35,8 +35,12 @@ export const requirePermission = (requiredPermission) => {
             }
 
             const permissionNames = user.role.permissions.map(perm => perm.name);
-            // Check if the required permission is in their list
-            if (!permissionNames.includes(requiredPermission)) {
+            const requiredPerms = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
+            
+            // Check if the user has at least one of the required permissions
+            const hasAccess = requiredPerms.some(perm => permissionNames.includes(perm));
+            
+            if (!hasAccess) {
                 return res.status(403).json({ 
                     message: "Forbidden: You do not have permission to perform this action." 
                 });
