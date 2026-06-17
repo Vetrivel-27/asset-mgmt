@@ -1,28 +1,30 @@
 import "./App.css";
-import LogIn from "./components/LogIn.js";
-import ForgotPassword from "./components/ForgotPassword.js";
+import LogIn from "./pages/Auth/LogIn.js";
+import ForgotPassword from "./pages/Auth/ForgotPassword.js";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AdminDashboard from "./components/Admin/AdminDashboard.js";
-import AdminAssets from "./components/Admin/AdminAssets.js";
-import AdminEmployees from "./components/Admin/AdminEmployees.js";
-import AdminAssignments from "./components/Admin/AdminAssignments.js";
-import AdminReports from "./components/Admin/AdminReports.js";
-import AdminRoles from "./components/Admin/AdminRoles.js";
-import AdminRequests from "./components/Admin/AdminRequests.js";
-import EmployeeAssets from "./components/Employee/EmployeeAssets.js";
-import EmployeeStatus from "./components/Employee/EmployeeStatus.js";
-import EmployeeReport from "./components/Employee/EmployeeReport.js";
-import EmployeeHistory from "./components/Employee/EmployeeHistory.js";
-import ProtectedRoute from "./components/ProtectedRoute.js";
-import PublicRoute from "./components/PublicRoute.js";
+import AdminDashboard from "./pages/Admin/AdminDashboard.js";
+import AdminAssets from "./pages/Admin/AdminAssets.js";
+import AdminEmployees from "./pages/Admin/AdminEmployees.js";
+import AdminAssignments from "./pages/Admin/AdminAssignments.js";
+import AdminReports from "./pages/Admin/AdminReports.js";
+import AdminRoles from "./pages/Admin/AdminRoles.js";
+import AdminRequests from "./pages/Admin/AdminRequests.js";
+import EmployeeAssets from "./pages/Employee/EmployeeAssets.js";
+import EmployeeStatus from "./pages/Employee/EmployeeStatus.js";
+import EmployeeReport from "./pages/Employee/EmployeeReport.js";
+import EmployeeHistory from "./pages/Employee/EmployeeHistory.js";
+import ProtectedRoute from "./components/common/ProtectedRoute.js";
+import PublicRoute from "./components/common/PublicRoute.js";
 import DashboardLayout from "./components/DashboardLayout.js";
-import PermissionRoute from "./components/PermissionRoute.js";
-import SessionManager from "./components/SessionManager.js";
+import PermissionRoute from "./components/common/PermissionRoute.js";
+import SessionManager from "./components/common/SessionManager.js";
+import { AuthProvider } from "./context/AuthContext.js";
 
 function App() {
   return (
-    <BrowserRouter>
-      <SessionManager />
+    <AuthProvider>
+      <BrowserRouter>
+        <SessionManager />
       <Routes>
         {/* Public-only routes: redirect to dashboard if already logged in */}
         <Route element={<PublicRoute />}>
@@ -71,10 +73,10 @@ function App() {
           </Route>
         </Route>
 
-        {/* Catch-all: send to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

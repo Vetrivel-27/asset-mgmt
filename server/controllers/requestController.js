@@ -1,6 +1,7 @@
 import Request from "../models/Request.js";
 import Employee from "../models/Employee.js";
 import User from "../models/User.js";
+import sendEmail from "../utils/sendEmail.js";
 
 //creation by employee
 export const createRequest = async (req, res) => {
@@ -22,18 +23,9 @@ export const createRequest = async (req, res) => {
       return res.status(403).json({ message: "Users with Admin roles cannot request to borrow assets." });
     }
 
-    const employee = await Employee.findOne({
-      userId: req.user.id,
-    });
-    if (!employee) {
-      return res.status(404).json({
-        message: "Employee profile not found for this user",
-      });
-    }
-
     if (requestedAssetId) {
       const pendingRequest = await Request.findOne({
-        employeeId: employee._id,
+        userId: req.user.id,
         requestedAssetId,
         status: "pending"
       });
@@ -44,7 +36,7 @@ export const createRequest = async (req, res) => {
       }
 
       const latestRequest = await Request.findOne({
-        employeeId: employee._id,
+        userId: req.user.id,
         requestedAssetId
       }).sort({ createdAt: -1 });
 
@@ -53,7 +45,7 @@ export const createRequest = async (req, res) => {
         const Assignment = (await import("../models/Assignment.js")).default;
         const assignedToSomeoneElse = await Assignment.findOne({
           assetId: requestedAssetId,
-          employeeId: { $ne: employee._id },
+          userId: { $ne: req.user.id },
           assignedDate: { $gt: T_reject }
         });
 
@@ -77,7 +69,7 @@ export const createRequest = async (req, res) => {
     }
 
     const newRequest = await Request.create({
-      employeeId: employee._id,
+      userId: req.user.id,
       assetType,
       requestedAssetId: requestedAssetId || null,
       reason: reason || `Requested to borrow ${assetName || assetType}`,
@@ -109,12 +101,12 @@ export const createRequest = async (req, res) => {
               subject: `New Borrow Request: ${assetName || assetType}`,
               text:
                 `Hello ${approver.displayName || "Approver"},\n\n` +
-                `Employee ${employee.name} has requested to borrow the asset "${assetName || assetType}" (Reason: ${reason || "Not specified"}).\n\n` +
+                `User ${user.displayName} has requested to borrow the asset "${assetName || assetType}" (Reason: ${reason || "Not specified"}).\n\n` +
                 `Please log in to the Asset Management System to approve or reject this request.\n\n` +
                 `Regards,\nAsset Management System`,
               html:
                 `<p>Hello ${approver.displayName || "Approver"},</p>` +
-                `<p>Employee <strong>${employee.name}</strong> has requested to borrow the asset <strong>"${assetName || assetType}"</strong>.</p>` +
+                `<p>User <strong>${user.displayName}</strong> has requested to borrow the asset <strong>"${assetName || assetType}"</strong>.</p>` +
                 `<p><strong>Reason:</strong> ${reason || "Not specified"}</p>` +
                 `<p>Please log in to the Asset Management System to approve or reject this request.</p>` +
                 `<p>Regards,<br>Asset Management System</p>`,
@@ -145,46 +137,16 @@ export const createRequest = async (req, res) => {
 //employee request history
 export const getMyRequests = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ userId: req.user.id });
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found." });
-    }
-    const requests = await Request.find({ employeeId: employee._id })
+    const requests = await Request.find({ userId: req.user.id })
       .populate("assignedAssetId", "name assetId")
       .populate("requestedAssetId", "name assetId type")
+      .populate({
+        path: "statusChangedBy",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" }
+      })
       .sort({ createdAt: -1 })
       .lean();
-
-    // Enrich with statusChangedBy employee details
-    try {
-      const statusChangedByIds = [...new Set(
-        requests.map(r => r.statusChangedBy).filter(Boolean)
-      )];
-
-      if (statusChangedByIds.length > 0) {
-        const users = await User.find({ _id: { $in: statusChangedByIds } }).select("userId email").lean();
-        const userMap = {};
-        users.forEach(u => { userMap[u._id.toString()] = u; });
-
-        const userObjIds = users.map(u => u._id);
-        const assignerEmployees = await Employee.find({ userId: { $in: userObjIds } })
-          .select("userId name department").lean();
-        const empMap = {};
-        assignerEmployees.forEach(emp => {
-          empMap[emp.userId.toString()] = emp;
-        });
-
-        requests.forEach(r => {
-          const uid = r.statusChangedBy?.toString();
-          if (uid) {
-            r.statusChangedBy = userMap[uid] || r.statusChangedBy;
-            r.statusChangedEmployee = empMap[uid] || null;
-          }
-        });
-      }
-    } catch (enrichErr) {
-      // Enrichment failed
-    }
 
     res.status(200).json({ requests });
   } catch (e) {
@@ -198,9 +160,9 @@ export const getAllRequests = async (req, res) => {
   try {
     const requests = await Request.find({})
       .populate({
-        path: "employeeId",
-        select: "name employeeId department",
-        populate: { path: "userId", select: "displayName email" },
+        path: "userId",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" },
       })
       .populate("assignedAssetId", "name assetId")
       .populate("requestedAssetId", "name assetId type")
@@ -222,12 +184,16 @@ export const updateRequestStatus = async (req, res) => {
     }
     request.status = status;
     request.statusChangedBy = req.user.id;
+    
+    // Fetch the user to get their email address for notification
+    const userReq = await User.findById(request.userId).populate("role");
+    if (!userReq) {
+        return res.status(404).json({ message: "Request user not found." });
+    }
+
+    let assetName = "the requested asset";
     if (status === "approved" && assignedAssetId) {
-      const employee = await Employee.findById(request.employeeId).populate({
-        path: "userId",
-        populate: { path: "role" }
-      });
-      if (employee && employee.userId && employee.userId.role && employee.userId.role.name.toLowerCase() === "admin") {
+      if (userReq.role && userReq.role.name.toLowerCase() === "admin") {
         return res.status(400).json({ message: "Assets cannot be assigned to users with Admin roles." });
       }
 
@@ -246,13 +212,15 @@ export const updateRequestStatus = async (req, res) => {
               "Asset is no longer available. It may have been assigned to someone else.",
           });
       }
+      
+      assetName = asset.name || "the requested asset";
 
       request.assignedAssetId = assignedAssetId;
 
       // Automatically create assignment when approved
       await Assignment.create({
         assetId: assignedAssetId,
-        employeeId: request.employeeId,
+        userId: request.userId,
         assignedDate: new Date(),
         tentativeReturnDate: request.tentativeReturnDate,
         createdBy: req.user.id,
@@ -275,6 +243,29 @@ export const updateRequestStatus = async (req, res) => {
       );
     }
     await request.save();
+
+    // Send email notification to the borrower
+    if (status === "approved" || status === "rejected") {
+      try {
+        const subject = status === "approved" 
+          ? `Your Asset Request has been Approved` 
+          : `Your Asset Request has been Rejected`;
+          
+        const text = status === "approved"
+          ? `Hello ${userReq.displayName || 'User'},\n\nYour request for ${assetName} has been approved. The asset has been assigned to you.\n\nThank you,\nAsset Management Team`
+          : `Hello ${userReq.displayName || 'User'},\n\nUnfortunately, your request for ${assetName} has been rejected.\n\nThank you,\nAsset Management Team`;
+
+        await sendEmail({
+          email: userReq.email,
+          subject,
+          text,
+        });
+      } catch (emailError) {
+        console.error("Failed to send status update email:", emailError);
+        // Do not fail the whole request just because the email failed
+      }
+    }
+
     res.status(200).json({ message: `Request ${status}`, request });
   } catch (e) {
     console.error(e);

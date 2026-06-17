@@ -1,5 +1,6 @@
 import Asset from "../models/Asset.js";
 import Assignment from "../models/Assignment.js";
+import { formatAndValidateAssetId, generateNextAssetId } from "../utils/assetUtils.js";
 
 export const createAsset = async (req, res) => {
   try {
@@ -18,16 +19,11 @@ export const createAsset = async (req, res) => {
     }
 
     if (assetId && assetId.trim() !== "") {
-      let formattedAssetId = String(assetId).trim();
-      if (/^\d{1,4}$/.test(formattedAssetId)) {
-        formattedAssetId = formattedAssetId.padStart(4, "0");
+      try {
+        assetId = formatAndValidateAssetId(assetId, type);
+      } catch (e) {
+        return res.status(400).json({ message: e.message });
       }
-      if (!/^\d{4}$/.test(formattedAssetId)) {
-        return res
-          .status(400)
-          .json({ message: "Asset ID must be a number up to 4 digits." });
-      }
-      assetId = formattedAssetId;
 
       const assetExists = await Asset.findOne({ assetId, isDeleted: false });
       if (assetExists) {
@@ -36,16 +32,7 @@ export const createAsset = async (req, res) => {
           .json({ message: `Asset with ID ${assetId} already exists.` });
       }
     } else {
-      // Auto-generate numeric only ID
-      const count = await Asset.countDocuments({});
-      let seq = count + 1000;
-      assetId = String(seq);
-      let assetExists = await Asset.findOne({ assetId, isDeleted: false });
-      while (assetExists) {
-        seq++;
-        assetId = String(seq);
-        assetExists = await Asset.findOne({ assetId, isDeleted: false });
-      }
+      assetId = await generateNextAssetId(type, Asset);
     }
 
     const asset = await Asset.create({
@@ -104,18 +91,20 @@ export const getAssets = async (req, res) => {
       returnedDate: null,
       isDeleted: false,
     }).populate({
-      path: "employeeId",
-      select: "name employeeId department userId",
-      populate: {
-        path: "userId",
-        select: "displayName email",
-      },
+      path: "userId",
+      select: "displayName email",
+      populate: { path: "employeeProfile", select: "employeeId department" },
     });
 
     const assignmentMap = {};
     activeAssignments.forEach((assign) => {
-      if (assign.assetId && assign.employeeId) {
-        assignmentMap[assign.assetId.toString()] = assign.employeeId;
+      if (assign.assetId && assign.userId) {
+        const user = assign.userId;
+        assignmentMap[assign.assetId.toString()] = {
+          name: user.displayName || user.email,
+          employeeId: user.employeeProfile?.employeeId || null,
+          email: user.email,
+        };
       }
     });
 
@@ -154,17 +143,21 @@ export const getAssetById = async (req, res) => {
         returnedDate: null,
         isDeleted: false,
       }).populate({
-        path: "employeeId",
-        select: "name employeeId department userId",
-        populate: {
-          path: "userId",
-          select: "displayName email",
-        },
+        path: "userId",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" },
       });
       const assetObj = asset.toObject();
-      assetObj.assignedTo = activeAssignment
-        ? activeAssignment.employeeId
-        : null;
+      if (activeAssignment && activeAssignment.userId) {
+        const user = activeAssignment.userId;
+        assetObj.assignedTo = {
+          name: user.displayName || user.email,
+          employeeId: user.employeeProfile?.employeeId || null,
+          email: user.email,
+        };
+      } else {
+        assetObj.assignedTo = null;
+      }
       res.json(assetObj);
     } else {
       res.status(404).json({ message: "Asset not found" });
@@ -220,17 +213,21 @@ export const updateAsset = async (req, res) => {
         returnedDate: null,
         isDeleted: false,
       }).populate({
-        path: "employeeId",
-        select: "name employeeId department userId",
-        populate: {
-          path: "userId",
-          select: "displayName email",
-        },
+        path: "userId",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" },
       });
       const assetObj = updatedAsset.toObject();
-      assetObj.assignedTo = activeAssignment
-        ? activeAssignment.employeeId
-        : null;
+      if (activeAssignment && activeAssignment.userId) {
+        const user = activeAssignment.userId;
+        assetObj.assignedTo = {
+          name: user.displayName || user.email,
+          employeeId: user.employeeProfile?.employeeId || null,
+          email: user.email,
+        };
+      } else {
+        assetObj.assignedTo = null;
+      }
       res.json(assetObj);
     } else {
       res.status(404).json({ message: "Asset not found" });

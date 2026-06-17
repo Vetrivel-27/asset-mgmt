@@ -5,7 +5,7 @@ import User from "../models/User.js";
 
 export const assignAsset = async (req, res) => {
   try {
-    const { assetId, employeeId, tentativeReturnDate } = req.body;
+    const { assetId, userId, tentativeReturnDate } = req.body;
     if (tentativeReturnDate) {
       const dateVal = new Date(tentativeReturnDate);
       const today = new Date();
@@ -17,18 +17,14 @@ export const assignAsset = async (req, res) => {
       }
     }
 
-    // Check if asset and employee exist
+    // Check if asset and user exist
     const asset = await Asset.findById(assetId);
-    const employee = await Employee.findById(employeeId).populate({
-      path: "userId",
-      populate: { path: "role" }
-    });
+    const user = await User.findById(userId).populate("role");
     if (!asset) return res.status(404).json({ message: "Asset not found" });
-    if (!employee)
-      return res.status(404).json({ message: "Employee not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     // Restrict assignment to users with admin roles
-    if (employee.userId && employee.userId.role && employee.userId.role.name.toLowerCase() === "admin") {
+    if (user.role && user.role.name.toLowerCase() === "admin") {
       return res.status(400).json({ message: "Assets cannot be assigned to users with Admin roles." });
     }
 
@@ -40,7 +36,7 @@ export const assignAsset = async (req, res) => {
     }
     const assignment = await Assignment.create({
       assetId,
-      employeeId,
+      userId,
       assignedDate: new Date(),
       tentativeReturnDate: tentativeReturnDate
         ? new Date(tentativeReturnDate)
@@ -82,49 +78,19 @@ export const returnAsset = async (req, res) => {
 
 export const getAllAssignments = async (req, res) => {
   try {
-    // Core query — asset + employee populates only (these are reliable)
     const assignments = await Assignment.find({})
       .populate("assetId", "name type assetId status")
       .populate({
-        path: "employeeId",
-        select: "name department",
-        populate: { path: "userId", select: "displayName email" },
+        path: "userId",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" },
+      })
+      .populate({
+        path: "createdBy",
+        select: "displayName email",
+        populate: { path: "employeeProfile", select: "employeeId department" },
       })
       .lean();
-
-    // Enrich with assigner employee details (isolated so failures don't break the endpoint)
-    try {
-      const createdByIds = [...new Set(
-        assignments.map(a => a.createdBy).filter(Boolean)
-      )];
-
-      if (createdByIds.length > 0) {
-        // Fetch User docs for createdBy
-        const users = await User.find({ _id: { $in: createdByIds } }).select("email displayName").lean();
-        const userMap = {};
-        users.forEach(u => { userMap[u._id.toString()] = u; });
-
-        // Fetch Employee docs matching those Users
-        const userObjIds = users.map(u => u._id);
-        const assignerEmployees = await Employee.find({ userId: { $in: userObjIds } })
-          .select("userId name department").lean();
-        const empMap = {};
-        assignerEmployees.forEach(emp => {
-          empMap[emp.userId.toString()] = emp;
-        });
-
-        // Attach to each assignment
-        assignments.forEach(a => {
-          const uid = a.createdBy?.toString();
-          if (uid) {
-            a.createdBy = userMap[uid] || a.createdBy;
-            a.assignerEmployee = empMap[uid] || null;
-          }
-        });
-      }
-    } catch (enrichErr) {
-      // Assigner enrichment failed — assignments still returned without assigner details
-    }
 
     res.json(assignments);
   } catch (error) {
@@ -135,11 +101,9 @@ export const getAllAssignments = async (req, res) => {
 
 export const getMyAssignments = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ userId: req.user.id });
-    if (!employee) {
-      return res.status(404).json({ message: "Employee profile not found" });
-    }
-    const assignments = await Assignment.find({ employeeId: employee._id })
+    const queryFilters = [{ userId: req.user.id }];
+
+    const assignments = await Assignment.find({ $or: queryFilters })
       .populate("assetId", "name type assetId status")
       .sort({ createdAt: -1 })
       .lean();
@@ -172,7 +136,7 @@ export const getMyAssignments = async (req, res) => {
         });
       }
     } catch (enrichErr) {
-      // Assigner enrichment failed — assignments still returned without assigner details
+      // Assigner enrichment failed
     }
 
     res.json(assignments);

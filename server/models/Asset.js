@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import softDeletePlugin from '../plugins/softDelete.js';
 
 const assetSchema = new mongoose.Schema({
     name: {type: String, required: true, trim: true},
@@ -6,22 +7,12 @@ const assetSchema = new mongoose.Schema({
     assetId: {type: String, required: true, trim: true},
     purchaseDate: { type: Date, required: true },
     status: {type: String, enum: ['available', 'assigned', 'damaged', 'repair'], default: 'available' },
-    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null},
-    isDeleted: {type: Boolean, default: false},
-    deletedAt: {type: Date, default: null},
-    deletedBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null}
+    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null}
 }, { timestamps: true });
 
+assetSchema.plugin(softDeletePlugin);
+
 assetSchema.index({ assetId: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
-assetSchema.pre(/^find/, function() {
-    if (this.getQuery().isDeleted === undefined) {
-        this.where({ isDeleted: false });
-    }
-});
-assetSchema.pre('countDocuments', function() {
-    if (this.getQuery().isDeleted === undefined) {
-        this.where({ isDeleted: false });
-    }
-});
+
 
 export default mongoose.model('Asset', assetSchema);
