@@ -7,6 +7,7 @@ import Permission from '../models/Permission.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import sendEmail from '../utils/sendEmail.js';
+import { formatAndValidateAssetId, generateNextAssetId } from '../utils/assetUtils.js';
 
 export const bulkUpload = async (req, res) => {
     if (!req.file) {
@@ -175,18 +176,29 @@ export const bulkUpload = async (req, res) => {
                         throw new Error("Employee ID must be a number up to 4 digits.");
                     }
 
-                    const userById = await User.findOne({ userId: employeeId });
+                    const empById = await Employee.findOne({ employeeId });
+                    const userById = empById ? await User.findById(empById.userId) : null;
                     const userByEmail = await User.findOne({ email });
 
-                    if (userByEmail && userByEmail.userId !== employeeId) {
-                        throw new Error(`Email '${email}' is already in use by employee ID '${userByEmail.userId}'.`);
+                    if (userByEmail) {
+                        const empByEmail = await Employee.findOne({ userId: userByEmail._id });
+                        if (empByEmail && empByEmail.employeeId !== employeeId) {
+                            throw new Error(`Email '${email}' is already in use by employee ID '${empByEmail.employeeId}'.`);
+                        }
                     }
 
                     const existingUser = userById || userByEmail;
                     if (existingUser) {
-                        const existingEmp = await Employee.findOne({ userId: existingUser._id });
+                        let existingEmp = await Employee.findOne({ userId: existingUser._id });
                         if (!existingEmp) {
-                            throw new Error("Linked employee profile not found.");
+                            // If a User exists but an Employee profile doesn't, automatically create it and link them.
+                            existingEmp = await Employee.create({
+                                name,
+                                department,
+                                employeeId,
+                                userId: existingUser._id,
+                                createdBy: req.user.id
+                            });
                         }
 
                         const targetRole = await Role.findOne({ name: { $regex: new RegExp(`^${roleName}$`, 'i') } });
@@ -336,14 +348,11 @@ export const bulkUpload = async (req, res) => {
                     }
 
                     if (assetId) {
-                        let formattedAssetId = String(assetId).trim();
-                        if (/^\d{1,4}$/.test(formattedAssetId)) {
-                            formattedAssetId = formattedAssetId.padStart(4, "0");
+                        try {
+                            assetId = formatAndValidateAssetId(assetId, type);
+                        } catch (e) {
+                            throw new Error(e.message);
                         }
-                        if (!/^\d{4}$/.test(formattedAssetId)) {
-                            throw new Error("Asset ID must be a number up to 4 digits.");
-                        }
-                        assetId = formattedAssetId;
 
                         // Check duplicate in the currently processed batch in this file
                         const localExisting = processedAssetsInFile[assetId];
@@ -357,16 +366,8 @@ export const bulkUpload = async (req, res) => {
                             throw new Error(`Asset with ID ${assetId} already exists.`);
                         }
                     } else {
-                        // Auto-generate numeric only ID
-                        const count = await Asset.countDocuments({});
-                        let seq = count + 1000;
-                        assetId = String(seq);
-                        let assetExists = await Asset.findOne({ assetId, isDeleted: false });
-                        while (assetExists || processedAssetsInFile[assetId]) {
-                            seq++;
-                            assetId = String(seq);
-                            assetExists = await Asset.findOne({ assetId, isDeleted: false });
-                        }
+                        const existingLocalSet = new Set(Object.keys(processedAssetsInFile));
+                        assetId = await generateNextAssetId(type, Asset, existingLocalSet);
                     }
 
                     const newAsset = await Asset.create({
